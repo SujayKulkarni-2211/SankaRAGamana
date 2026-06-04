@@ -96,6 +96,24 @@ def split_prose(text: str, group_size: int = 4) -> List[str]:
     return groups
 
 
+# Consonants that take nukta (़) in Sanskrit loanwords/foreign words but NOT in native Sanskrit
+# फ़ ज़ क़ ग़ — these indicate transliterated English remaining after conversion
+_FOREIGN_NUKTA_RE = re.compile(r"[फजकग]़")
+
+
+def is_garbage_line(line: str) -> bool:
+    """True if line contains nukta on non-Sanskrit consonants — transliterated English."""
+    return bool(_FOREIGN_NUKTA_RE.search(line))
+
+
+def strip_garbage_lines(text: str) -> str:
+    """Remove lines containing transliterated-English Devanagari before chunking."""
+    return "\n".join(
+        line for line in text.splitlines()
+        if not is_garbage_line(line)
+    )
+
+
 def enforce_max_size(chunk: str) -> List[str]:
     """Split chunk at nearest । if longer than MAX_CHARS."""
     if len(chunk) <= MAX_CHARS:
@@ -115,6 +133,7 @@ def enforce_max_size(chunk: str) -> List[str]:
 
 def chunk_text(text: str, text_name: str, stem: str, category: str, authenticity: str, source: str) -> List[dict]:
     title_devanagari = TITLE_MAP.get(stem, "")
+    text = strip_garbage_lines(text)
     has_double_danda = "॥" in text
     raw_chunks = split_by_double_danda(text) if has_double_danda else split_prose(text)
 

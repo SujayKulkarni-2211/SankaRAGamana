@@ -29,12 +29,15 @@ def setup_logging():
 
 
 def strip_metadata(text: str) -> str:
-    """Remove % metadata lines and LaTeX \\commands."""
+    """Remove % metadata lines, LaTeX \\commands, #directives, and ##SECTION## markers."""
+    import re
     lines = []
     for line in text.splitlines():
         stripped = line.strip()
-        if stripped.startswith("%") or stripped.startswith("\\"):
+        if stripped.startswith("%") or stripped.startswith("\\") or stripped.startswith("#"):
             continue
+        # Strip inline ##SECTION LABEL## markers (often English inside Sanskrit files)
+        line = re.sub(r"##[^#]*##", "", line)
         lines.append(line)
     return "\n".join(lines)
 
