@@ -1,0 +1,17 @@
+corpus/raw/
+corpus/clean/
+*.itx
+.env
+__pycache__/
+node_modules/
+.cache/
+*.pyc
+model_cache/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+*.log
+logs/
+.DS_Store
