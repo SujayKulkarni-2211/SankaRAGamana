@@ -10,9 +10,8 @@ import json
 import os
 from typing import Optional
 
-from groq import Groq
+from backend.rag.groq_client import get_client
 
-_client: Optional[Groq] = None
 
 PROFILER_PROMPT = """You are a profiler. Analyze the seeker's query and return a JSON object.
 
@@ -86,13 +85,6 @@ DEFAULT_PROFILE = {
 }
 
 
-def _get_client() -> Groq:
-    global _client
-    if _client is None:
-        _client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-    return _client
-
-
 def _detect_language_fallback(query: str) -> str:
     """Quick heuristic language detection without langdetect."""
     # Devanagari range
@@ -105,17 +97,50 @@ def _detect_language_fallback(query: str) -> str:
     return "en"
 
 
-async def profile_seeker(query: str) -> dict:
+MAX_HISTORY_CHARS = 3000  # chars of history injected into profiler context
+
+
+def _compress_history(history: list) -> str:
+    """
+    Extractively compress history — keep the most recent turns that fit.
+    No LLM call. Drops oldest turns first when over limit.
+    Returns a formatted string summary or empty string.
+    """
+    if not history:
+        return ""
+    # Keep only the last 6 messages (3 exchanges), most recent first
+    recent = history[-6:]
+    # Build from most recent backward, stop when over char limit
+    lines = []
+    total = 0
+    for msg in reversed(recent):
+        role = "Seeker" if msg.get("role") == "user" else "Shankara"
+        # Truncate each message to 400 chars to prevent one huge message dominating
+        content = msg.get("content", "")[:400]
+        line = f"{role}: {content}"
+        if total + len(line) > MAX_HISTORY_CHARS:
+            break
+        lines.insert(0, line)
+        total += len(line)
+    if not lines:
+        return ""
+    return "Prior conversation (most recent first):\n" + "\n".join(lines)
+
+
+async def profile_seeker(query: str, history: list = None) -> dict:
     """
     Analyze the seeker's query and return a profile dict.
     Falls back to DEFAULT_PROFILE if Groq is unavailable or returns bad JSON.
     """
     try:
-        client = _get_client()
-        response = client.chat.completions.create(
+        history_ctx = _compress_history(history or [])
+        prompt = PROFILER_PROMPT.format(query=query)
+        if history_ctx:
+            prompt = history_ctx + "\n\nCurrent query: " + query + "\n\n" + prompt
+        response = get_client().chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {"role": "user", "content": PROFILER_PROMPT.format(query=query)},
+                {"role": "user", "content": prompt},
             ],
             temperature=0.1,
             max_tokens=300,
@@ -151,10 +176,34 @@ async def profile_seeker(query: str) -> dict:
             if detected != "en":
                 profile["language"] = detected
 
+        profile["_history_ctx"] = _compress_history(history or [])
+        _apply_hard_overrides(query, profile)
         return profile
 
     except Exception:
         # Never fail the request — just use the default profile
         profile = copy.deepcopy(DEFAULT_PROFILE)
         profile["language"] = _detect_language_fallback(query)
+        profile["_history_ctx"] = _compress_history(history or [])
+        _apply_hard_overrides(query, profile)
         return profile
+
+
+_ATMAN_TERMS = {"atman", "ātman", "atma", "ātma", "soul", "self", "आत्मा", "आत्मन्", "आत्म"}
+
+
+def _apply_hard_overrides(query: str, profile: dict) -> None:
+    """
+    Post-processing rules that override profiler output regardless of what
+    the model returned. These encode domain knowledge the LLM may miss.
+    """
+    query_lower = query.lower()
+    rs = profile.setdefault("retrieval_strategy", {})
+    primary = rs.setdefault("primary_texts", [])
+
+    # Atman definitional queries → tattvabodha and atmabodha must be first
+    if profile.get("intent") == "definitional" and any(t in query_lower for t in _ATMAN_TERMS):
+        for text in ("aatmabodha", "tattvabodha"):
+            if text in primary:
+                primary.remove(text)
+            primary.insert(0, text)

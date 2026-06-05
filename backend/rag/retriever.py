@@ -13,6 +13,24 @@ def get_client() -> Client:
     return _client
 
 
+PRIMARY_TEXT_BOOST = 1.5  # multiply similarity score for chunks from primary texts
+
+
+def _rerank(chunks: List[dict], primary_texts: List[str]) -> List[dict]:
+    """
+    Re-score chunks: primary text chunks get a 1.3x similarity boost
+    before final sort. Raw similarity is preserved in the original field;
+    boosted score is used only for ordering.
+    """
+    primary_set = set(primary_texts)
+    for chunk in chunks:
+        raw = chunk.get("similarity", 0)
+        boost = PRIMARY_TEXT_BOOST if chunk.get("text_name") in primary_set else 1.0
+        chunk["_boosted_score"] = raw * boost
+    chunks.sort(key=lambda x: x["_boosted_score"], reverse=True)
+    return chunks
+
+
 async def retrieve(
     query_embedding: List[float],
     seeker_profile: dict,
@@ -20,10 +38,11 @@ async def retrieve(
     """
     Retrieve chunks from Supabase pgvector.
 
-    Strategy (from seeker_profile):
-    1. Search primary_texts first with match_threshold=0.3
-    2. If we don't fill top_k, expand to all texts
-    3. If include_commentary=True, also pull commentary-category chunks
+    Strategy:
+    1. Fetch top_k * 3 candidates from all texts (wide net)
+    2. Re-rank: primary text chunks get 1.3x similarity boost
+    3. Select final top_k after re-ranking
+    4. If include_commentary=True, add up to 2 commentary chunks
     """
     strategy = seeker_profile.get("retrieval_strategy", {})
     top_k = strategy.get("top_k", 5)
@@ -31,35 +50,40 @@ async def retrieve(
     include_commentary = strategy.get("include_commentary", False)
 
     client = get_client()
-    results = []
 
-    # Phase 1: search within primary texts
+    # Phase A: fetch best chunks from primary texts specifically (low threshold)
+    primary_results = []
     if primary_texts:
-        phase1 = _vector_search(
+        primary_results = _vector_search(
             client,
             query_embedding,
-            top_k=top_k,
+            top_k=max(top_k, 6),
             text_filter=primary_texts,
-            match_threshold=0.25,
+            match_threshold=0.1,
         )
-        results.extend(phase1)
 
-    # Phase 2: if we still need more chunks, expand to all texts
-    if len(results) < top_k:
-        seen_ids = {r["chunk_id"] for r in results}
-        phase2 = _vector_search(
-            client,
-            query_embedding,
-            top_k=top_k - len(results),
-            text_filter=None,
-            match_threshold=0.25,
-        )
-        for chunk in phase2:
-            if chunk["chunk_id"] not in seen_ids:
-                results.append(chunk)
-                seen_ids.add(chunk["chunk_id"])
+    # Phase B: wide candidate pool from all texts
+    all_results = _vector_search(
+        client,
+        query_embedding,
+        top_k=top_k * 3,
+        text_filter=None,
+        match_threshold=0.2,
+    )
 
-    # Phase 3: if include_commentary, add commentary chunks
+    # Merge: primary results first, then fill from wide pool (no duplicates)
+    seen_ids = {r["chunk_id"] for r in primary_results}
+    candidates = list(primary_results)
+    for r in all_results:
+        if r["chunk_id"] not in seen_ids:
+            candidates.append(r)
+            seen_ids.add(r["chunk_id"])
+
+    # Re-rank with primary text boost then select top_k
+    candidates = _rerank(candidates, primary_texts)
+    results = candidates[:top_k]
+
+    # Commentary pass — add up to 2 extra chunks if requested
     if include_commentary:
         seen_ids = {r["chunk_id"] for r in results}
         commentary = _vector_search(
@@ -73,9 +97,7 @@ async def retrieve(
             if chunk["chunk_id"] not in seen_ids:
                 results.append(chunk)
 
-    # Sort by similarity score descending, cap at top_k + 2 for commentary
-    results.sort(key=lambda x: x.get("similarity", 0), reverse=True)
-    return results[:top_k + (2 if include_commentary else 0)]
+    return results
 
 
 def _vector_search(

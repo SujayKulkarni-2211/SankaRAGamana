@@ -2,11 +2,15 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from backend.api.query import router as query_router
-from backend.api.upload import router as upload_router
-from backend.api.corpus import router as corpus_router
-from backend.auth.admin import router as auth_router
+from backend.api.stream import router as stream_router
+from backend.api.feedback import router as feedback_router
+from backend.api.conversation import router as conversation_router
+from backend.api.translate import router as translate_router
 from backend.rag.embedder import Embedder
 
 app = FastAPI(title="SankaRĀGamana", version="1.0.0")
@@ -20,9 +24,10 @@ app.add_middleware(
 )
 
 app.include_router(query_router)
-app.include_router(upload_router)
-app.include_router(corpus_router)
-app.include_router(auth_router)
+app.include_router(stream_router)
+app.include_router(feedback_router)
+app.include_router(conversation_router)
+app.include_router(translate_router)
 
 
 @app.get("/health")

@@ -99,11 +99,26 @@ def split_prose(text: str, group_size: int = 4) -> List[str]:
 # Consonants that take nukta (़) in Sanskrit loanwords/foreign words but NOT in native Sanskrit
 # फ़ ज़ क़ ग़ — these indicate transliterated English remaining after conversion
 _FOREIGN_NUKTA_RE = re.compile(r"[फजकग]़")
+# Kannada Unicode block
+_KANNADA_RE = re.compile(r"[ಀ-೿]")
+# Roman characters (4+ consecutive) inside a Devanagari chunk = transliterated English
+_ROMAN_IN_DEVA_RE = re.compile(r"[a-zA-Z]{4,}")
 
 
 def is_garbage_line(line: str) -> bool:
-    """True if line contains nukta on non-Sanskrit consonants — transliterated English."""
-    return bool(_FOREIGN_NUKTA_RE.search(line))
+    """True if line is transliterated English or contains non-Sanskrit script."""
+    if _FOREIGN_NUKTA_RE.search(line):
+        return True
+    if _KANNADA_RE.search(line):
+        return True
+    return False
+
+
+def is_garbage_chunk(chunk: str) -> bool:
+    """True if the whole chunk is transliterated English prose (not Sanskrit)."""
+    if _ROMAN_IN_DEVA_RE.search(chunk):
+        return True
+    return False
 
 
 def strip_garbage_lines(text: str) -> str:
@@ -142,6 +157,8 @@ def chunk_text(text: str, text_name: str, stem: str, category: str, authenticity
     for raw in raw_chunks:
         for part in enforce_max_size(raw):
             if len(part) < MIN_CHARS:
+                continue
+            if is_garbage_chunk(part):
                 continue
             chunk_id = f"{text_name}_{verse_counter:03d}"
             chunks.append(

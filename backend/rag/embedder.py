@@ -13,7 +13,7 @@ class Embedder:
         if cls._instance is None:
             device = "cuda" if torch.cuda.is_available() else "cpu"
             cls._instance = SentenceTransformer(
-                "intfloat/multilingual-e5-small",
+                "intfloat/multilingual-e5-large",
                 device=device,
                 cache_folder=os.getenv("MODEL_CACHE", "model_cache"),
             )

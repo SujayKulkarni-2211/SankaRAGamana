@@ -1,7 +1,14 @@
 """
 Runs on your Victus locally. Uses GPU if available.
-Loads chunks from corpus/chunks/, embeds with e5-small, pushes to Supabase.
+Loads chunks from corpus/chunks/, embeds with e5-LARGE, pushes to Supabase.
+
+Uses multilingual-e5-large (560MB) for ingestion — significantly better
+Sanskrit-English bridging than e5-small. The backend (Render) still uses
+e5-small for query-time embedding; the vector dimension stays 1024 for large.
+
 CRITICAL: passage prefix "passage: " for all document embeddings.
+NOTE: Supabase embedding column must be vector(1024) for e5-large.
+      Run the migration SQL before first use if switching from e5-small.
 """
 
 import json
@@ -36,9 +43,9 @@ def setup_logging():
 
 def load_model() -> SentenceTransformer:
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"Loading e5-small on {device}...")
+    print(f"Loading e5-large on {device}...")
     return SentenceTransformer(
-        "intfloat/multilingual-e5-small",
+        "intfloat/multilingual-e5-large",
         device=device,
         cache_folder=os.getenv("MODEL_CACHE", "model_cache"),
     )

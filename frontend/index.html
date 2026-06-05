@@ -7,21 +7,78 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@300;400;500;600&family=Noto+Serif+Devanagari:wght@400;600&family=Inter:wght@300;400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600&family=Noto+Sans+Kannada:wght@400;500;600&family=Noto+Sans+Tamil:wght@400;500;600&family=Noto+Sans+Telugu:wght@400;500;600&family=Noto+Sans+Malayalam:wght@400;500;600&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap"
       rel="stylesheet"
     />
     <style>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
       body {
-        font-family: 'Inter', 'Noto Sans Devanagari', sans-serif;
-        background: #0e0c09;
-        color: #e8d5a3;
+        font-family: 'Crimson Pro', Georgia, serif;
+        background: #FDFAF5;
+        color: #1A1208;
         min-height: 100vh;
       }
+      /* Suppress Google's banner bar that pushes content down */
+      .goog-te-banner-frame { display: none !important; }
+      body { top: 0px !important; }
+      #goog-gt-tt, .goog-te-balloon-frame { display: none !important; }
+      .skiptranslate > iframe { height: 0 !important; visibility: hidden !important; }
+      /* Keep the combo hidden — we drive it from our own button */
+      #google_translate_element { display: none; }
     </style>
   </head>
   <body>
     <div id="root"></div>
+    <div id="google_translate_element"></div>
+
+    <script type="text/javascript">
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement(
+          { pageLanguage: 'en', autoDisplay: false },
+          'google_translate_element'
+        );
+      }
+
+      // Called from React — sets language via the hidden combo select
+      window.doGTranslate = function(lang_pair) {
+        if (lang_pair.value) lang_pair = lang_pair.value;
+        if (lang_pair == '') return;
+        var lang = lang_pair.split('|');
+        if (lang.length !== 2) return;
+        if (lang[0] == lang[1]) return;
+        var teCombo;
+        var sel = document.getElementsByTagName('select');
+        for (var i = 0; i < sel.length; i++) {
+          if (sel[i].className == 'goog-te-combo') {
+            teCombo = sel[i];
+            break;
+          }
+        }
+        if (!teCombo) return;
+        teCombo.value = lang[1];
+        if (teCombo.dispatchEvent) {
+          teCombo.dispatchEvent(new Event('change'));
+        } else {
+          teCombo.fireEvent('onchange');
+        }
+      }
+
+      // Reset to English — clear googtrans cookie and reload
+      window.resetTranslate = function() {
+        function eraseCookie(name, domain) {
+          document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=' + domain;
+        }
+        eraseCookie('googtrans', document.domain);
+        eraseCookie('googtrans', '.' + document.domain);
+        eraseCookie('googtrans', 'localhost');
+        window.location.reload();
+      }
+    </script>
+    <script
+      type="text/javascript"
+      src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"
+    ></script>
+
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

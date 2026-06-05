@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Sringeri at dawn — white stone, morning light, one saffron flame */
+  --bg:       #FDFAF5;
+  --bg2:      #F6F1E6;
+  --surface:  #FFFFFF;
+  --border:   #E2D8C4;
+  --border2:  #C8BA9E;
+
+  --text:     #1A1208;
+  --text2:    #4A3820;
+  --muted:    #8A7458;
+
+  --saffron:  #C8620A;
+  --saffron2: #A04E06;
+  --gold:     #9A7010;
+
+  --header:   #FAF6EE;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  font-size: 17px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body, #root {
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-family: 'Crimson Pro', Georgia, 'Times New Roman', serif;
+  line-height: 1.7;
+}
+
+/* Scrollbar — like a thin line of teak */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* Selection — like camphor flame highlight */
+::selection { background: #4A3010; color: var(--text); }
