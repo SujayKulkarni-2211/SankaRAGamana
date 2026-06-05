@@ -40,6 +40,8 @@ TITLE_MAP = {
     "kaalabhairava8": "कालभैरवाष्टकम्",
     "ganesha5": "गणेशपञ्चरत्नम्",
     "shivapanchakshara": "शिवपञ्चाक्षरस्तोत्रम्",
+    "gitabhashya": "श्रीमद्भगवद्गीताशाङ्करभाष्यम्",
+    "brahmasutra_bhashya": "ब्रह्मसूत्रशाङ्करभाष्यम्",
 }
 
 # text_name lookup (filename stem → canonical text_name)
@@ -64,6 +66,8 @@ NAME_MAP = {
     "kaalabhairava8": "kalabhairava_ashtakam",
     "ganesha5": "ganesha_pancharatnam",
     "shivapanchakshara": "sivapanchakshara",
+    "gitabhashya": "gitabhashya",
+    "brahmasutra_bhashya": "brahmasutra_bhashya",
 }
 
 

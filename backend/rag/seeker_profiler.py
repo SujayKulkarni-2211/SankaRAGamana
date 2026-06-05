@@ -53,7 +53,7 @@ PRIMARY TEXTS by profile:
 - beginner/definitional → ["tattvabodha", "atmabodha", "bhajagovindam"]
 - beginner/in_distress → ["bhajagovindam", "nirvanashatakam", "manishapanchakam"]
 - intermediate → ["vivekachudamani", "aparokshanubhuti", "upadeshasahasri"]
-- advanced/scholar → ["kena_bhashya", "isha_bhashya", "upadeshasahasri", "vivekachudamani"]
+- advanced/scholar → ["brahmasutra_bhashya", "gitabhashya", "kena_bhashya", "isha_bhashya", "upadeshasahasri", "vivekachudamani"]
 - devotional (Shiva/general) → ["dakshinamurti_stotram", "kalabhairava_ashtakam", "bhajagovindam"]
 - devotional (philosophical) → ["dakshinamurti_stotram", "vivekachudamani", "atmabodha"]
 - in_distress → ["bhajagovindam", "nirvanashatakam", "manishapanchakam"]
@@ -207,3 +207,17 @@ def _apply_hard_overrides(query: str, profile: dict) -> None:
             if text in primary:
                 primary.remove(text)
             primary.insert(0, text)
+
+    # Brahman/causation/creation queries → BSB is the primary source
+    _BRAHMAN_TERMS = {"brahman", "brahma", "ब्रह्म", "brahmasutra", "vedanta", "cause of universe",
+                      "creation", "srishti", "jagat karan", "anandamaya", "sarira"}
+    if any(t in query_lower for t in _BRAHMAN_TERMS):
+        if "brahmasutra_bhashya" not in primary:
+            primary.insert(0, "brahmasutra_bhashya")
+
+    # Karma yoga / Gita / dharma / arjuna queries → Gita Bhashya first
+    _GITA_TERMS = {"karma yoga", "karmayoga", "bhagavad gita", "gita", "arjuna", "dharma",
+                   "nishkama karma", "action", "duty", "karma", "कर्मयोग", "गीता", "अर्जुन"}
+    if any(t in query_lower for t in _GITA_TERMS):
+        if "gitabhashya" not in primary:
+            primary.insert(0, "gitabhashya")
