@@ -60,6 +60,56 @@ export default function About() {
           </p>
         </Section>
 
+        <Section title="Texts in the corpus">
+          <p className="mb-4">
+            The system retrieves from 32 of Śaṅkarācārya's works — over 4,000
+            passages embedded for semantic search. The foundational Bhāṣyas form
+            the doctrinal core; the prakaraṇa granthas and stotras give voice and
+            accessibility.
+          </p>
+
+          <TextGroup title="Bhāṣya — Commentaries (the doctrinal core)">
+            <TextItem dev="ब्रह्मसूत्रशाङ्करभाष्यम्" rom="Brahma Sūtra Bhāṣya" note="Śaṅkara's definitive statement on Advaita" />
+            <TextItem dev="श्रीमद्भगवद्गीताशाङ्करभाष्यम्" rom="Bhagavad Gītā Bhāṣya" note="commentary on the Gītā" />
+            <TextItem dev="केनोपनिषद्शाङ्करभाष्यम्" rom="Kena Upaniṣad Bhāṣya" />
+            <TextItem dev="ईशावास्योपनिषद्शाङ्करभाष्यम्" rom="Īśāvāsya Upaniṣad Bhāṣya" />
+          </TextGroup>
+
+          <TextGroup title="Prakaraṇa Granthas — Independent treatises">
+            <TextItem dev="विवेकचूडामणिः" rom="Vivekacūḍāmaṇi" />
+            <TextItem dev="उपदेशसाहस्री" rom="Upadeśasāhasrī" />
+            <TextItem dev="अपरोक्षानुभूतिः" rom="Aparokṣānubhūti" />
+            <TextItem dev="तत्त्वबोधः" rom="Tattvabodha" />
+            <TextItem dev="आत्मबोधः" rom="Ātmabodha" />
+            <TextItem dev="पञ्चीकरणम्" rom="Pañcīkaraṇam" />
+            <TextItem dev="वाक्यवृत्तिः" rom="Vākyavṛtti" />
+            <TextItem dev="दृग्दृश्यविवेकः" rom="Dṛg-Dṛśya-Viveka" />
+            <TextItem dev="तत्त्वोपदेशः" rom="Tattvopadeśa" />
+            <TextItem dev="अद्वैतानुभूतिः" rom="Advaitānubhūti" />
+            <TextItem dev="प्रश्नोत्तररत्नमालिका" rom="Praśnottara-ratnamālikā" />
+            <TextItem dev="ब्रह्मज्ञानावलीमाला" rom="Brahmajñānāvalīmālā" />
+            <TextItem dev="लघुवाक्यवृत्तिः" rom="Laghu-Vākyavṛtti" />
+            <TextItem dev="मायापञ्चकम्" rom="Māyā-Pañcakam" />
+            <TextItem dev="साधनपञ्चकम्" rom="Sādhana-Pañcakam" />
+            <TextItem dev="स्वरूपानुसन्धानाष्टकम्" rom="Svarūpa-anusandhāna-aṣṭakam" />
+            <TextItem dev="दशश्लोकी" rom="Daśaślokī" />
+            <TextItem dev="एकश्लोकी" rom="Ekaślokī" />
+            <TextItem dev="यतिपञ्चकम्" rom="Yati-Pañcakam" />
+            <TextItem dev="कौपीनपञ्चकम्" rom="Kaupīna-Pañcakam" />
+          </TextGroup>
+
+          <TextGroup title="Stotras — Hymns of devotion">
+            <TextItem dev="भजगोविन्दम्" rom="Bhaja Govindam" />
+            <TextItem dev="गणेशपञ्चरत्नम्" rom="Gaṇeśa-Pañcaratnam" />
+            <TextItem dev="दक्षिणामूर्तिस्तोत्रम्" rom="Dakṣiṇāmūrti Stotram" />
+            <TextItem dev="कालभैरवाष्टकम्" rom="Kālabhairava-Aṣṭakam" />
+            <TextItem dev="गुर्वष्टकम्" rom="Gurvaṣṭakam" />
+            <TextItem dev="तोटकाष्टकम्" rom="Toṭakāṣṭakam" />
+            <TextItem dev="काशीपञ्चकम्" rom="Kāśī-Pañcakam" />
+            <TextItem dev="मनीषापञ्चकम्" rom="Manīṣā-Pañcakam" />
+          </TextGroup>
+        </Section>
+
         <Section title="On rate limits">
           <p className="mb-3">
             This service is offered freely as sevā. We do not monetize it. We do
@@ -131,5 +181,33 @@ function Section({ title, children }) {
         {children}
       </div>
     </section>
+  )
+}
+
+function TextGroup({ title, children }) {
+  return (
+    <div className="mb-6">
+      <h3 className="text-[var(--text2)] text-sm font-semibold mb-2">{title}</h3>
+      <ul className="space-y-1.5">{children}</ul>
+    </div>
+  )
+}
+
+function TextItem({ dev, rom, note }) {
+  return (
+    <li className="flex flex-wrap items-baseline gap-x-2">
+      <span
+        className="font-['Noto_Sans_Devanagari'] text-[var(--text)]"
+        style={{ fontSize: "1.05rem" }}
+      >
+        {dev}
+      </span>
+      <span className="text-[var(--muted)] text-[0.95rem]">{rom}</span>
+      {note && (
+        <span className="text-[var(--muted)] text-[0.85rem] italic">
+          — {note}
+        </span>
+      )}
+    </li>
   )
 }

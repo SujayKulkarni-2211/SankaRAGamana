@@ -221,3 +221,25 @@ def _apply_hard_overrides(query: str, profile: dict) -> None:
     if any(t in query_lower for t in _GITA_TERMS):
         if "gitabhashya" not in primary:
             primary.insert(0, "gitabhashya")
+
+    # Deity-specific queries → the matching stotra must lead retrieval.
+    # Each deity maps to the Shankara stotra(s) that praise/describe it.
+    _DEITY_TEXTS = {
+        ("ganesha", "ganapati", "vinayaka", "गणेश", "गणपति", "विनायक"):
+            ["ganesha_pancharatnam"],
+        ("shiva", "dakshinamurti", "dakshinamurthy", "शिव", "दक्षिणामूर्ति", "nataraja"):
+            ["dakshina"],
+        ("bhairava", "kalabhairava", "kala bhairava", "भैरव", "कालभैरव"):
+            ["kaalabhairava"],
+        ("devi", "shakti", "saraswati", "sharada", "देवी", "शारदा", "सरस्वती"):
+            ["bhajagovindam"],
+        ("guru", "गुरु", "teacher"):
+            ["guruashtakam"],
+    }
+    for terms, texts in _DEITY_TEXTS.items():
+        if any(t in query_lower for t in terms):
+            for text in reversed(texts):
+                if text in primary:
+                    primary.remove(text)
+                primary.insert(0, text)
+            break

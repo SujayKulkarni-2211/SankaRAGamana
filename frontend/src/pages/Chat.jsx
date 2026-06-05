@@ -311,7 +311,13 @@ export default function Chat({ user, displayLang }) {
           let event = "", data = ""
           for (const line of part.split("\n")) {
             if (line.startsWith("event:")) event = line.slice(6).trim()
-            if (line.startsWith("data:"))  data  = line.slice(5).trim()
+            // SSE spec: strip exactly ONE optional leading space after "data:".
+            // Do NOT trim — text-token events (final_response, agent_*) carry
+            // meaningful leading/trailing spaces between word chunks.
+            if (line.startsWith("data:")) {
+              data = line.slice(5)
+              if (data.startsWith(" ")) data = data.slice(1)
+            }
           }
           if (!event) continue
 
@@ -332,11 +338,18 @@ export default function Chat({ user, displayLang }) {
                 return { ...ex, events: { ...ex.events, agent_b_chunks: JSON.parse(data) } }
               case "agent_b_response":
                 return { ...ex, events: { ...ex.events, agent_b_response_tokens: [...(ex.events.agent_b_response_tokens||[]), data] } }
-              case "reflection_reasoning":
-                return { ...ex, events: { ...ex.events, reflection_reasoning_tokens: [data] } }
-              case "final_response":
-                finalText += data
-                return { ...ex, finalTokens: [...ex.finalTokens, data] }
+              case "reflection_reasoning": {
+                let r = data
+                try { r = JSON.parse(data) } catch { /* fallback */ }
+                return { ...ex, events: { ...ex.events, reflection_reasoning_tokens: [r] } }
+              }
+              case "final_response": {
+                // data is JSON-encoded text — parse to recover exact spacing/newlines
+                let piece = data
+                try { piece = JSON.parse(data) } catch { /* fallback to raw */ }
+                finalText += piece
+                return { ...ex, finalTokens: [...ex.finalTokens, piece] }
+              }
               case "done": {
                 const p = JSON.parse(data)
                 const fullResponse = finalText

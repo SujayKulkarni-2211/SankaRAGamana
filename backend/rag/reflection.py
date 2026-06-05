@@ -146,6 +146,63 @@ def _fmt_chunks_full(chunks: list) -> str:
     )
 
 
+def _dedupe_repeated_half(text: str) -> str:
+    """If text is the same content concatenated twice, return one copy.
+    Handles the case where the model emits 'X. X.' with X repeated."""
+    t = text.strip()
+    n = len(t)
+    if n < 40:
+        return t
+    half = n // 2
+    # Check exact halves (with optional whitespace in the middle)
+    first = t[:half].strip()
+    second = t[half:].strip()
+    if first and first == second:
+        return first
+    # Check if the second half starts by repeating the first sentence verbatim
+    first_sentence = t.split(".")[0].strip()
+    if first_sentence and len(first_sentence) > 25:
+        idx = t.find(first_sentence, len(first_sentence))
+        if idx != -1:
+            candidate = t[:idx].strip()
+            if candidate:
+                return candidate
+    return t
+
+
+def _is_clean_prose(text: str) -> bool:
+    """True if text is a real prose response, not leaked JSON/profile/error markers."""
+    if not text or not text.strip():
+        return False
+    t = text.strip()
+    # Reject anything that looks like a JSON object/array or contains audit keys
+    if t.startswith("{") or t.startswith("["):
+        return False
+    leaks = (
+        '"final_response"', '"winner"', '"agent_a_pramana"', '"reasoning"',
+        "reflection error", "jsondecodeerror", "level=", "intent=",
+        "emotional_tone", "retrieval_strategy",
+    )
+    low = t.lower()
+    if any(marker in low for marker in leaks):
+        return False
+    return True
+
+
+def _extract_field(text: str, key: str) -> Optional[str]:
+    """Pull a single string field out of malformed/truncated JSON by regex.
+    Used as a last resort when json.loads fails (e.g. truncated at max_tokens)."""
+    import re
+    # Match "key": "...." allowing escaped quotes inside
+    m = re.search(rf'"{key}"\s*:\s*"((?:[^"\\]|\\.)*)"', text, re.DOTALL)
+    if m:
+        try:
+            return json.loads('"' + m.group(1) + '"')  # unescape
+        except Exception:
+            return m.group(1)
+    return None
+
+
 def _parse_reflection(raw: str) -> dict:
     text = raw.strip()
     if text.startswith("```"):
@@ -154,21 +211,45 @@ def _parse_reflection(raw: str) -> dict:
             text = text[4:]
         text = text.strip()
 
-    result = json.loads(text)
+    try:
+        result = json.loads(text)
+    except json.JSONDecodeError:
+        # Truncated or malformed JSON — salvage the prose fields by regex so
+        # we still get a usable synthesis instead of falling back to raw text.
+        final_resp = _extract_field(text, "final_response")
+        if not final_resp:
+            raise  # nothing salvageable — let caller use fallback
+        result = {
+            "final_response": final_resp,
+            "winner": (_extract_field(text, "winner") or "b").strip().lower()[-1:] or "b",
+            "reasoning": _extract_field(text, "reasoning") or "",
+            "correction_for_a": None,
+            "correction_for_b": None,
+        }
 
     # Repair final_response spacing — normalize whitespace within paragraphs
-    # but preserve paragraph breaks for markdown rendering
+    # but preserve paragraph breaks for markdown rendering. Also dedupe.
     if "final_response" in result and result["final_response"]:
         resp = result["final_response"]
         # Split on paragraph breaks, normalize each paragraph internally
         paragraphs = resp.split("\n\n")
         cleaned = []
+        seen = set()
         for para in paragraphs:
             # Within a paragraph, collapse multiple spaces/newlines to single space
             para = " ".join(para.split())
-            if para:
-                cleaned.append(para)
-        result["final_response"] = "\n\n".join(cleaned)
+            if not para:
+                continue
+            # Drop exact-duplicate paragraphs (model sometimes repeats the whole block)
+            key = para.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            cleaned.append(para)
+        joined = "\n\n".join(cleaned)
+        # Catch whole-text duplication: text repeated back-to-back with no break
+        joined = _dedupe_repeated_half(joined)
+        result["final_response"] = joined
 
     return result
 
@@ -237,9 +318,10 @@ async def run_reflection_agent(
             judgment = _parse_reflection(raw.choices[0].message.content)
         except Exception as e:
             print(f"[reflection] judgment failed (round {_round}): {e}")
-            # Use better of the two responses as fallback, with spacing normalized
+            # Use better of the two responses as fallback, deduped + spacing normalized
             fallback = b_response or a_response or ""
             fallback = " ".join(fallback.split())  # normalize whitespace
+            fallback = _dedupe_repeated_half(fallback)  # kill any doubled text
             return ReflectionResult(
                 final_response=fallback,
                 reasoning=f"Reflection error ({type(e).__name__}) — using Agent B response.",
@@ -271,8 +353,16 @@ async def run_reflection_agent(
     winner = judgment.get("winner", "b")
     chunks_used = a_chunks if winner == "a" else b_chunks
 
+    # Guarantee final_response is clean prose — never JSON, never an error marker.
+    final_resp = judgment.get("final_response") or ""
+    if not _is_clean_prose(final_resp):
+        # The model returned something that looks like JSON/profile/garbage —
+        # fall back to the winning agent's actual response.
+        final_resp = (b_response if winner == "b" else a_response) or b_response or a_response or ""
+        final_resp = " ".join(final_resp.split())
+
     return ReflectionResult(
-        final_response=judgment.get("final_response", b_response or a_response),
+        final_response=final_resp,
         reasoning=judgment.get("reasoning", ""),
         winner=winner,
         chunks_used=chunks_used,

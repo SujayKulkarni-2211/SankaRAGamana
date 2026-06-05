@@ -50,6 +50,12 @@ def sse(event: str, data) -> str:
     return f"event: {event}\ndata: {payload}\n\n"
 
 
+def sse_json(event: str, text: str) -> str:
+    """SSE event whose data is a JSON-encoded string.
+    Preserves spaces and newlines through SSE framing — the frontend JSON.parses it."""
+    return f"event: {event}\ndata: {json.dumps(text, ensure_ascii=False)}\n\n"
+
+
 def chunk_preview(chunks: list) -> list:
     return [
         {
@@ -119,23 +125,37 @@ async def generate_stream(question: str, user_id: Optional[str], client_ip: str,
 
     final = await run_reflection_agent(pipeline_q, seeker_profile, a_result, b_result)
 
-    # Stream reflection reasoning — emit as one block (it's already complete text)
+    # Stream reflection reasoning — JSON-encoded, goes ONLY to ThinkingPanel.
+    # This may contain error markers (e.g. "Reflection error ...") — that is fine
+    # HERE because it never touches the final_response event.
     reasoning = final.reasoning or ""
     if reasoning:
-        yield sse("reflection_reasoning", reasoning)
+        yield sse_json("reflection_reasoning", reasoning)
 
-    # Step 8: Stream final response in ~word-sized chunks for smooth appearance
+    # Step 8: Stream final response in ~word-sized chunks for smooth appearance.
+    # Each piece is JSON-encoded so spaces AND newlines (paragraph breaks)
+    # survive SSE framing intact — the SSE \n\n terminator can't corrupt it.
     final_text = final.final_response or ""
+    if not final_text.strip():
+        # Never leave the response area empty — give a graceful line.
+        final_text = "The retrieved passages did not yield a grounded answer for this question. Please rephrase or ask about a related teaching."
     if final_text:
-        # Split on spaces to preserve them, emit chunks of ~4 words
-        words = final_text.split(" ")
-        chunk_size = 4
-        for i in range(0, len(words), chunk_size):
-            piece = " ".join(words[i:i + chunk_size])
-            # Add back space unless last chunk
-            if i + chunk_size < len(words):
-                piece += " "
-            yield sse("final_response", piece)
+        # Split on whitespace runs but KEEP the separators so spacing is exact
+        import re as _re
+        tokens = _re.split(r"(\s+)", final_text)  # ['The',' ','retrieved',' ',...]
+        # Regroup into ~4-word pieces, separators included
+        piece = ""
+        word_count = 0
+        for tok in tokens:
+            piece += tok
+            if tok and not tok.isspace():
+                word_count += 1
+            if word_count >= 4:
+                yield sse_json("final_response", piece)
+                piece = ""
+                word_count = 0
+        if piece:
+            yield sse_json("final_response", piece)
 
     # Step 9: Done
     session_id = str(uuid.uuid4())
