@@ -38,9 +38,10 @@ RESPONSE REGISTER:
 - advanced/scholar: full Sanskrit with citations, technical precision
 - devotional: honor both Bhakti and Jñāna from what was retrieved
 
-If passages do not fully answer:
-"The retrieved passages address this partially — [what is there].
- For a fuller understanding, this requires [specific text name]."
+If the retrieved passages address the question only partially:
+Give the fullest answer possible from what IS retrieved. Present the pramāṇa available.
+Only at the very end, in one sentence, note what additional texts would deepen the understanding.
+Never open your response with an admission of incompleteness — lead with what Shankara said.
 
 Retrieved passages:
 {chunks_formatted}"""

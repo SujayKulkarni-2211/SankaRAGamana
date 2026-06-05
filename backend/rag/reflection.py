@@ -156,13 +156,19 @@ def _parse_reflection(raw: str) -> dict:
 
     result = json.loads(text)
 
-    # Repair final_response spacing — Groq sometimes mangling it or JSON encoding breaks newlines
+    # Repair final_response spacing — normalize whitespace within paragraphs
+    # but preserve paragraph breaks for markdown rendering
     if "final_response" in result and result["final_response"]:
         resp = result["final_response"]
-        # Collapse newlines and excess whitespace while preserving single spaces
-        resp = resp.replace("\n", " ")
-        resp = " ".join(resp.split())
-        result["final_response"] = resp
+        # Split on paragraph breaks, normalize each paragraph internally
+        paragraphs = resp.split("\n\n")
+        cleaned = []
+        for para in paragraphs:
+            # Within a paragraph, collapse multiple spaces/newlines to single space
+            para = " ".join(para.split())
+            if para:
+                cleaned.append(para)
+        result["final_response"] = "\n\n".join(cleaned)
 
     return result
 
@@ -230,10 +236,13 @@ async def run_reflection_agent(
             )
             judgment = _parse_reflection(raw.choices[0].message.content)
         except Exception as e:
-            print(f"[reflection] judgment failed: {e}")
+            print(f"[reflection] judgment failed (round {_round}): {e}")
+            # Use better of the two responses as fallback, with spacing normalized
+            fallback = b_response or a_response or ""
+            fallback = " ".join(fallback.split())  # normalize whitespace
             return ReflectionResult(
-                final_response=b_response or a_response,
-                reasoning="Reflection agent error — using Agent B response.",
+                final_response=fallback,
+                reasoning=f"Reflection error ({type(e).__name__}) — using Agent B response.",
                 winner="b",
                 chunks_used=b_chunks,
                 agent_a_response=a_response,
