@@ -1,5 +1,8 @@
 import os
-from typing import List, Optional
+import json
+import math
+from pathlib import Path
+from typing import List, Optional, Dict
 
 from supabase import create_client, Client
 
@@ -13,37 +16,103 @@ def get_client() -> Client:
     return _client
 
 
+# ── Book centroids ──────────────────────────────────────────────────────────
+# Each book has an average (L2-normalised) embedding. Comparing the query to a
+# book's centroid tells us whether that book is GENUINELY about the topic, vs.
+# merely having a few locally-similar chunks. This lets us tell apart honest
+# domination ("this book really is about this") from lazy/volume flooding.
+_CENTROIDS_PATH = Path(__file__).parent / "data" / "book_centroids.json"
+_centroids: Optional[Dict[str, list]] = None
+
+
+def _load_centroids() -> Dict[str, list]:
+    global _centroids
+    if _centroids is None:
+        _centroids = {}
+        try:
+            raw = json.loads(_CENTROIDS_PATH.read_text())
+            _centroids = {tn: d["centroid"] for tn, d in raw.items()}
+        except Exception as e:
+            print(f"[retriever] could not load book centroids: {e}")
+            _centroids = {}
+    return _centroids
+
+
+def _book_similarity(query_embedding: List[float], text_name: str) -> float:
+    """Cosine similarity between query and a book's centroid (0 if unknown).
+    query_embedding need not be normalised; centroids already are."""
+    cents = _load_centroids()
+    c = cents.get(text_name)
+    if not c:
+        return 0.0
+    dot = sum(q * v for q, v in zip(query_embedding, c))
+    qnorm = math.sqrt(sum(q * q for q in query_embedding)) or 1.0
+    return dot / qnorm
+
+
 # How many chunks the agents finally see. A paṇḍita draws on several sources,
 # explains each, and shows how to apply them — so we retrieve generously.
 FINAL_K = 10
 CANDIDATE_POOL = 40  # wide net before diversity-aware selection
 
-# Soft diversity: a single text MAY dominate if it is genuinely most relevant,
-# but each additional chunk from an already-represented text is gently
-# discounted, so equally-relevant passages from other works can surface.
-# This mirrors a scholar who cites multiple sources rather than one.
-DIVERSITY_DECAY = 0.02  # similarity penalty per prior chunk from the same text
-                        # small enough that a genuinely dominant text keeps
-                        # multiple slots, large enough to break monotony
+# Soft diversity, modulated by whether a book is GENUINELY on-topic.
+# Each additional chunk from an already-picked text is discounted — but the
+# size of that discount depends on the book's centroid similarity to the query:
+#   - book genuinely about this (high centroid sim) → SMALL decay, it may keep
+#     many slots (honest domination, like a paṇḍita citing the right text often)
+#   - book just has locally-similar chunks (low centroid sim) → LARGE decay,
+#     pushed aside so other works surface (this is the "lazy retrieval" guard)
+DIVERSITY_DECAY_MAX = 0.05   # penalty per prior chunk when book is OFF-topic
+DIVERSITY_DECAY_MIN = 0.008  # penalty per prior chunk when book is ON-topic
+# Centroid-sim range over which decay interpolates from MAX→MIN.
+CENTROID_LOW = 0.74
+CENTROID_HIGH = 0.84
+
+# The Gītā Bhāṣya is the universal text — "what is not in the Gītā is nowhere."
+# A small standing boost so at least one Gītā passage tends to earn a seat in
+# most answers, without letting it crowd out the genuinely closest sources.
+GITA_TEXT = "gitabhashya"
+GITA_BOOST = 0.012
 
 
-def _diversity_select(candidates: List[dict], k: int) -> List[dict]:
+def _book_decay(book_sim: float) -> float:
+    """Interpolate per-source decay from MAX (off-topic) to MIN (on-topic)."""
+    if book_sim <= CENTROID_LOW:
+        return DIVERSITY_DECAY_MAX
+    if book_sim >= CENTROID_HIGH:
+        return DIVERSITY_DECAY_MIN
+    frac = (book_sim - CENTROID_LOW) / (CENTROID_HIGH - CENTROID_LOW)
+    return DIVERSITY_DECAY_MAX - frac * (DIVERSITY_DECAY_MAX - DIVERSITY_DECAY_MIN)
+
+
+def _diversity_select(candidates: List[dict], k: int, query_embedding: List[float]) -> List[dict]:
     """
-    Greedy selection that prefers high similarity but discounts repeated
-    sources. A text can still win multiple slots if its chunks are clearly
-    the strongest — domination by merit is allowed, domination by volume is not.
+    Greedy selection: prefer high similarity, but discount repeated sources by
+    an amount that depends on how genuinely on-topic each book is (its centroid
+    similarity to the query). Honest domination is allowed; volume flooding and
+    lazy clustering are not. The Gītā Bhāṣya gets a small universal-text boost.
     """
+    # Precompute book-level centroid similarity for the texts present.
+    book_sim: dict = {}
+    for c in candidates:
+        tn = c.get("text_name")
+        if tn not in book_sim:
+            book_sim[tn] = _book_similarity(query_embedding, tn)
+
     chosen: List[dict] = []
     per_text_count: dict = {}
     pool = list(candidates)
 
     while pool and len(chosen) < k:
-        best, best_score, best_i = None, -1.0, -1
+        best, best_score, best_i = None, -1e9, -1
         for i, c in enumerate(pool):
+            tn = c.get("text_name")
             sim = c.get("similarity", 0)
-            seen = per_text_count.get(c.get("text_name"), 0)
-            # discount by how many we've already taken from this text
-            adjusted = sim - DIVERSITY_DECAY * seen
+            seen = per_text_count.get(tn, 0)
+            decay = _book_decay(book_sim.get(tn, 0.0))
+            adjusted = sim - decay * seen
+            if tn == GITA_TEXT:
+                adjusted += GITA_BOOST
             if adjusted > best_score:
                 best, best_score, best_i = c, adjusted, i
         chosen.append(best)
@@ -84,7 +153,7 @@ async def retrieve(
         match_threshold=0.0,
     )
 
-    results = _diversity_select(candidates, k)
+    results = _diversity_select(candidates, k, query_embedding)
 
     return results
 
