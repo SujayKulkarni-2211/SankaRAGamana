@@ -13,22 +13,44 @@ def get_client() -> Client:
     return _client
 
 
-PRIMARY_TEXT_BOOST = 1.5  # multiply similarity score for chunks from primary texts
+# How many chunks the agents finally see. A paṇḍita draws on several sources,
+# explains each, and shows how to apply them — so we retrieve generously.
+FINAL_K = 10
+CANDIDATE_POOL = 40  # wide net before diversity-aware selection
+
+# Soft diversity: a single text MAY dominate if it is genuinely most relevant,
+# but each additional chunk from an already-represented text is gently
+# discounted, so equally-relevant passages from other works can surface.
+# This mirrors a scholar who cites multiple sources rather than one.
+DIVERSITY_DECAY = 0.02  # similarity penalty per prior chunk from the same text
+                        # small enough that a genuinely dominant text keeps
+                        # multiple slots, large enough to break monotony
 
 
-def _rerank(chunks: List[dict], primary_texts: List[str]) -> List[dict]:
+def _diversity_select(candidates: List[dict], k: int) -> List[dict]:
     """
-    Re-score chunks: primary text chunks get a 1.3x similarity boost
-    before final sort. Raw similarity is preserved in the original field;
-    boosted score is used only for ordering.
+    Greedy selection that prefers high similarity but discounts repeated
+    sources. A text can still win multiple slots if its chunks are clearly
+    the strongest — domination by merit is allowed, domination by volume is not.
     """
-    primary_set = set(primary_texts)
-    for chunk in chunks:
-        raw = chunk.get("similarity", 0)
-        boost = PRIMARY_TEXT_BOOST if chunk.get("text_name") in primary_set else 1.0
-        chunk["_boosted_score"] = raw * boost
-    chunks.sort(key=lambda x: x["_boosted_score"], reverse=True)
-    return chunks
+    chosen: List[dict] = []
+    per_text_count: dict = {}
+    pool = list(candidates)
+
+    while pool and len(chosen) < k:
+        best, best_score, best_i = None, -1.0, -1
+        for i, c in enumerate(pool):
+            sim = c.get("similarity", 0)
+            seen = per_text_count.get(c.get("text_name"), 0)
+            # discount by how many we've already taken from this text
+            adjusted = sim - DIVERSITY_DECAY * seen
+            if adjusted > best_score:
+                best, best_score, best_i = c, adjusted, i
+        chosen.append(best)
+        per_text_count[best.get("text_name")] = per_text_count.get(best.get("text_name"), 0) + 1
+        pool.pop(best_i)
+
+    return chosen
 
 
 async def retrieve(
@@ -36,66 +58,33 @@ async def retrieve(
     seeker_profile: dict,
 ) -> List[dict]:
     """
-    Retrieve chunks from Supabase pgvector.
+    Retrieve chunks from Supabase pgvector — PURE SEMANTIC across all texts.
+
+    The seeker profile no longer restricts WHICH texts are searched; relevance
+    to the question alone decides what surfaces. The profile only shapes how
+    the answer is explained (register/depth), handled by the agents.
 
     Strategy:
-    1. Fetch top_k * 3 candidates from all texts (wide net)
-    2. Re-rank: primary text chunks get 1.3x similarity boost
-    3. Select final top_k after re-ranking
-    4. If include_commentary=True, add up to 2 commentary chunks
+    1. Wide semantic net across ALL texts (CANDIDATE_POOL candidates)
+    2. Diversity-aware selection: prefer relevance, discount repeated sources
+    3. Return FINAL_K chunks spanning several works when relevance is comparable
     """
+    # top_k from the profile is respected as a floor, but we lean generous so
+    # answers can cite and explain multiple sources like a learned teacher.
     strategy = seeker_profile.get("retrieval_strategy", {})
-    top_k = strategy.get("top_k", 5)
-    primary_texts = strategy.get("primary_texts", [])
-    include_commentary = strategy.get("include_commentary", False)
+    k = max(strategy.get("top_k", FINAL_K), FINAL_K)
 
     client = get_client()
 
-    # Phase A: fetch best chunks from primary texts specifically (low threshold)
-    primary_results = []
-    if primary_texts:
-        primary_results = _vector_search(
-            client,
-            query_embedding,
-            top_k=max(top_k, 6),
-            text_filter=primary_texts,
-            match_threshold=0.1,
-        )
-
-    # Phase B: wide candidate pool from all texts
-    all_results = _vector_search(
+    candidates = _vector_search(
         client,
         query_embedding,
-        top_k=top_k * 3,
+        top_k=CANDIDATE_POOL,
         text_filter=None,
-        match_threshold=0.2,
+        match_threshold=0.0,
     )
 
-    # Merge: primary results first, then fill from wide pool (no duplicates)
-    seen_ids = {r["chunk_id"] for r in primary_results}
-    candidates = list(primary_results)
-    for r in all_results:
-        if r["chunk_id"] not in seen_ids:
-            candidates.append(r)
-            seen_ids.add(r["chunk_id"])
-
-    # Re-rank with primary text boost then select top_k
-    candidates = _rerank(candidates, primary_texts)
-    results = candidates[:top_k]
-
-    # Commentary pass — add up to 2 extra chunks if requested
-    if include_commentary:
-        seen_ids = {r["chunk_id"] for r in results}
-        commentary = _vector_search(
-            client,
-            query_embedding,
-            top_k=2,
-            category_filter="commentary",
-            match_threshold=0.2,
-        )
-        for chunk in commentary:
-            if chunk["chunk_id"] not in seen_ids:
-                results.append(chunk)
+    results = _diversity_select(candidates, k)
 
     return results
 

@@ -75,7 +75,8 @@ Only flag correction_for_a or correction_for_b if pramāṇa_score < 0.6.
 The correction must be specific: name which sentences are ungrounded.
 Do not correct register or coverage — those are not worth a retry.
 
-OUTPUT — valid JSON only, no markdown, no explanation outside the JSON:
+OUTPUT — valid JSON only, no markdown, no explanation outside the JSON.
+This is ONLY the audit. The final teaching is composed in a separate step.
 {{
   "agent_a_pramana": <float>,
   "agent_a_register": <0 or 1>,
@@ -86,11 +87,65 @@ OUTPUT — valid JSON only, no markdown, no explanation outside the JSON:
   "agent_b_coverage": <float>,
   "agent_b_score": <float>,
   "winner": "a" or "b",
-  "final_response": "<synthesized response — rules: (1) Take the winning agent's Sanskrit passages and citations as the authoritative pramāṇa base. (2) Pull the translation and explanation from Agent B wherever it clarifies meaning — do not discard it just because A won. (3) If the seeker's language is English: present the Sanskrit verse first, then its translation, then the meaning for the seeker — all in English prose. (4) If the seeker's language is Hindi: same structure but explanation in Hindi. (5) If the seeker's language is Sanskrit: full Sanskrit throughout, no translation needed. (6) If the seeker's language is Kannada: explanation in Kannada, Sanskrit verses cited with translation. (7) Remove all duplicate sentences. (8) Do NOT copy either agent verbatim — synthesize into one clean, unified response that reads naturally in the seeker's language.>",
   "reasoning": "<one sentence: which score was higher and why>",
   "correction_for_a": "<specific sentence-level correction or null>",
   "correction_for_b": "<specific sentence-level correction or null>"
 }}"""
+
+
+# Separate synthesis step — composes the teaching the seeker actually reads.
+# Takes the best of BOTH worlds: the Sanskrit path's authentic pramāṇa (real
+# Śaṅkara-style cognition over a Sanskrit corpus) AND the explanation path's
+# clear articulation, plus connective exposition — one unified discourse.
+#
+# It does NOT impersonate Śaṅkara. It presents the teaching so the seeker FEELS
+# his presence through the answer. It may NOT invent verses of its own.
+SYNTHESIS_SYSTEM = """You are SankaRĀGamana. You present the teaching of Ādi
+Śaṅkarācārya so that the seeker feels his presence through the answer. You are
+NOT Śaṅkara and you do not speak as "I, Śaṅkara"; you are the voice that carries
+his words forward, as a learned paṇḍita transmits the teaching he received.
+
+You are composing the FINAL teaching the seeker will read. Two assistants have
+prepared material for you:
+
+• The SANSKRIT path — reasoned directly in Sanskrit over the Sanskrit corpus.
+  Its verses and citations are the authentic pramāṇa, the doctrinal spine.
+• The EXPLANATION path — articulated the meaning in plain language. Use it
+  wherever it clarifies what the Sanskrit means.
+
+ABSOLUTE RULE — NO INVENTION OF VERSES:
+You may ONLY quote Sanskrit verses/citations that ALREADY appear in the two
+answers or the retrieved passages below. You must NOT compose, recall, or invent
+any śloka or citation of your own. If a verse is not in the material below, you
+may not quote it. Explanation in your own words is welcome; fabricated scripture
+is forbidden.
+
+YOUR TASK — weave BOTH answers into ONE rich teaching:
+  1. Open by naming the heart of the question.
+  2. Cite the Sanskrit verses the material provides — for each: the Devanagari
+     verse, its translation, and why it answers this question. Use SEVERAL
+     sources where the material offers them, not just one.
+  3. Connect the passages — show how the teachings illuminate one another.
+  4. Close with how the seeker can LIVE this — the practical application the
+     passages imply.
+
+Give a FULL, substantial unfolding every time — a sincere question deserves a
+complete, richly explained answer. Do not abbreviate. Do not repeat a sentence.
+
+LANGUAGE: Write the explanation in ENGLISH. (The interface handles display
+translation, so you always compose in English.) Sanskrit verses are quoted in
+Devanagari exactly as they appear in the material, then translated into English.
+
+Never write JSON or meta-commentary — only the teaching itself.
+
+THE SANSKRIT PATH'S ANSWER (authentic pramāṇa — a source of verses):
+{agent_a_response}
+
+THE EXPLANATION PATH'S ANSWER (clarifying meaning):
+{agent_b_response}
+
+THE RETRIEVED PASSAGES (the only other source of verses you may cite):
+{chunks_full}"""
 
 RETRY_SYSTEM = """You are SankaRĀGamana. Regenerate your previous response with this correction applied.
 
@@ -312,8 +367,8 @@ async def run_reflection_agent(
                     )},
                     {"role": "user", "content": f"Audit these two responses for: {query}"},
                 ],
-                temperature=0.1,
-                max_tokens=1024,
+                temperature=0.2,
+                max_tokens=3000,
             )
             judgment = _parse_reflection(raw.choices[0].message.content)
         except Exception as e:
@@ -353,19 +408,57 @@ async def run_reflection_agent(
     winner = judgment.get("winner", "b")
     chunks_used = a_chunks if winner == "a" else b_chunks
 
-    # Guarantee final_response is clean prose — never JSON, never an error marker.
-    final_resp = judgment.get("final_response") or ""
-    if not _is_clean_prose(final_resp):
-        # The model returned something that looks like JSON/profile/garbage —
-        # fall back to the winning agent's actual response.
-        final_resp = (b_response if winner == "b" else a_response) or b_response or a_response or ""
-        final_resp = " ".join(final_resp.split())
-
+    # Audit only — the teaching is composed separately by stream_synthesis().
+    # final_response stays empty here; reasoning/winner feed the ThinkingPanel.
     return ReflectionResult(
-        final_response=final_resp,
+        final_response="",
         reasoning=judgment.get("reasoning", ""),
         winner=winner,
         chunks_used=chunks_used,
         agent_a_response=a_response,
         agent_b_response=b_response,
     )
+
+
+# Union of both agents' chunks — the synthesizer's full library of citable verses.
+def _merge_chunks(a_chunks: list, b_chunks: list) -> list:
+    seen, merged = set(), []
+    for c in (a_chunks or []) + (b_chunks or []):
+        cid = c.get("chunk_id")
+        if cid not in seen:
+            seen.add(cid)
+            merged.append(c)
+    return merged
+
+
+def stream_synthesis(
+    query: str,
+    seeker_profile: dict,
+    agent_a_response: str,
+    agent_b_response: str,
+    a_chunks: list,
+    b_chunks: list,
+):
+    """Stream the FINAL teaching as plain prose — best of both agents woven
+    together, grounded only in their verses + the retrieved chunks. Returns a
+    Groq streaming object (or None on failure so the caller can fall back)."""
+    chunks_full = _fmt_chunks_full(_merge_chunks(a_chunks, b_chunks))
+    system = SYNTHESIS_SYSTEM.format(
+        agent_a_response=agent_a_response or "(no Sanskrit-path answer was produced)",
+        agent_b_response=agent_b_response or "(no explanation-path answer was produced)",
+        chunks_full=chunks_full,
+    )
+    try:
+        return groq_chat(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": f"Compose the full teaching for the seeker's question: {query}"},
+            ],
+            temperature=0.3,
+            max_tokens=2600,
+            stream=True,
+        )
+    except Exception as e:
+        print(f"[synthesis] stream failed: {type(e).__name__}: {e}")
+        return None

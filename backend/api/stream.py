@@ -28,7 +28,7 @@ from backend.rag.seeker_profiler import profile_seeker
 from backend.rag.translator import translate_query_to_english
 from backend.rag.agent_a import stream_agent_a, run_agent_a, AgentResult as AResult
 from backend.rag.agent_b import stream_agent_b, run_agent_b, AgentResult as BResult
-from backend.rag.reflection import run_reflection_agent
+from backend.rag.reflection import run_reflection_agent, stream_synthesis, _dedupe_repeated_half
 from backend.rag.imprints import load_imprints
 from backend.api.rate_limit import check_rate_limits
 
@@ -54,6 +54,23 @@ def sse_json(event: str, text: str) -> str:
     """SSE event whose data is a JSON-encoded string.
     Preserves spaces and newlines through SSE framing — the frontend JSON.parses it."""
     return f"event: {event}\ndata: {json.dumps(text, ensure_ascii=False)}\n\n"
+
+
+def _word_pieces(text: str, words_per_piece: int = 4):
+    """Yield text in ~N-word pieces, preserving exact whitespace. Used for the
+    fallback path where we have a complete string rather than a live stream."""
+    import re as _re
+    tokens = _re.split(r"(\s+)", text)
+    piece, wc = "", 0
+    for tok in tokens:
+        piece += tok
+        if tok and not tok.isspace():
+            wc += 1
+        if wc >= words_per_piece:
+            yield piece
+            piece, wc = "", 0
+    if piece:
+        yield piece
 
 
 def chunk_preview(chunks: list) -> list:
@@ -118,43 +135,41 @@ async def generate_stream(question: str, user_id: Optional[str], client_ip: str,
                 b_full += token
                 yield sse_json("agent_b_response", token)
 
-    # Step 7: Run reflection (non-streaming — it produces JSON)
-    # Build AgentResult objects from accumulated text
+    # Step 7: Audit (lightweight JSON — scores + winner + reasoning, no synthesis)
     a_result = AResult(response=a_full, chunks=a_chunks, sanskrit_query=a_sa_query)
     b_result = BResult(response=b_full, chunks=b_chunks)
 
     final = await run_reflection_agent(pipeline_q, seeker_profile, a_result, b_result)
 
-    # Stream reflection reasoning — JSON-encoded, goes ONLY to ThinkingPanel.
-    # This may contain error markers (e.g. "Reflection error ...") — that is fine
-    # HERE because it never touches the final_response event.
+    # Reflection reasoning — JSON-encoded, goes ONLY to ThinkingPanel. May carry
+    # error markers; that's fine here because it never touches final_response.
     reasoning = final.reasoning or ""
     if reasoning:
         yield sse_json("reflection_reasoning", reasoning)
 
-    # Step 8: Stream final response in ~word-sized chunks for smooth appearance.
-    # Each piece is JSON-encoded so spaces AND newlines (paragraph breaks)
-    # survive SSE framing intact — the SSE \n\n terminator can't corrupt it.
-    final_text = final.final_response or ""
+    # Step 8: Compose + STREAM the final teaching. A dedicated synthesis call
+    # weaves both agents' verses + the chunks into one discourse (plain prose,
+    # not JSON), streamed live token-by-token. JSON-encoded per token so spaces
+    # and newlines survive SSE framing.
+    final_text = ""
+    synth_stream = stream_synthesis(
+        pipeline_q, seeker_profile, a_full, b_full, a_chunks, b_chunks
+    )
+    if synth_stream:
+        for chunk in synth_stream:
+            token = chunk.choices[0].delta.content or ""
+            if token:
+                final_text += token
+                yield sse_json("final_response", token)
+
+    # Fallback: synthesis failed or produced nothing → use the winning agent's
+    # own answer (deduped) so the seeker is never left with an empty response.
     if not final_text.strip():
-        # Never leave the response area empty — give a graceful line.
-        final_text = "The retrieved passages did not yield a grounded answer for this question. Please rephrase or ask about a related teaching."
-    if final_text:
-        # Split on whitespace runs but KEEP the separators so spacing is exact
-        import re as _re
-        tokens = _re.split(r"(\s+)", final_text)  # ['The',' ','retrieved',' ',...]
-        # Regroup into ~4-word pieces, separators included
-        piece = ""
-        word_count = 0
-        for tok in tokens:
-            piece += tok
-            if tok and not tok.isspace():
-                word_count += 1
-            if word_count >= 4:
-                yield sse_json("final_response", piece)
-                piece = ""
-                word_count = 0
-        if piece:
+        final_text = (b_full if final.winner == "b" else a_full) or b_full or a_full or ""
+        final_text = _dedupe_repeated_half(" ".join(final_text.split()))
+        if not final_text.strip():
+            final_text = "The retrieved passages did not yield a grounded answer for this question. Please rephrase or ask about a related teaching."
+        for piece in _word_pieces(final_text):
             yield sse_json("final_response", piece)
 
     # Step 9: Done

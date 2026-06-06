@@ -298,6 +298,8 @@ export default function Chat({ user, displayLang }) {
       const decoder = new TextDecoder()
       let buf = ""
       let finalText = ""
+      let doneConvData = null
+      let doneWinner = null
 
       while (true) {
         const { done, value } = await reader.read()
@@ -320,6 +322,43 @@ export default function Chat({ user, displayLang }) {
             }
           }
           if (!event) continue
+
+          // ── Side effects FIRST, outside the state updater ──────────────
+          // React StrictMode runs setState updaters twice in dev; any closure
+          // mutation inside them (e.g. finalText += piece) would double. So we
+          // accumulate text and fire save/navigate here, exactly once.
+          if (event === "final_response") {
+            let piece = data
+            try { piece = JSON.parse(data) } catch { /* raw */ }
+            finalText += piece
+          }
+          if (event === "done") {
+            const p = JSON.parse(data)
+            const fullResponse = finalText
+            const convData = {
+              session_id: p.session_id, user_id: user?.id ?? null,
+              query: q, final_response: fullResponse,
+              agent_a_response: p.agent_a_response,
+              agent_b_response: p.agent_b_response,
+              reflection_reasoning: p.reflection_reasoning,
+              chunks_used: p.chunks_used, rating: null,
+              language: p.seeker_profile?.language,
+              seeker_level: p.seeker_profile?.level,
+            }
+            fetch("/api/conversation/save", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...convData, seeker_profile: p.seeker_profile }),
+            })
+            navigate(`/darshana/${p.session_id}`, { replace: false })
+            setHistory(prev => [
+              ...prev,
+              { role: "user",      content: q },
+              { role: "assistant", content: fullResponse },
+            ])
+            doneConvData = convData
+            doneWinner = p.reflection_winner
+          }
 
           setExchanges(prev => prev.map(ex => {
             if (ex.id !== id) return ex
@@ -353,40 +392,18 @@ export default function Chat({ user, displayLang }) {
                 return { ...ex, events: { ...ex.events, reflection_reasoning_tokens: [r] } }
               }
               case "final_response": {
-                // data is JSON-encoded text — parse to recover exact spacing/newlines
+                // PURE: parse and append to the token array only. The closure
+                // accumulator finalText is handled above (once, outside updater).
                 let piece = data
                 try { piece = JSON.parse(data) } catch { /* fallback to raw */ }
-                finalText += piece
                 return { ...ex, finalTokens: [...ex.finalTokens, piece] }
               }
               case "done": {
-                const p = JSON.parse(data)
-                const fullResponse = finalText
-                const convData = {
-                  session_id: p.session_id, user_id: user?.id ?? null,
-                  query: q, final_response: fullResponse,
-                  agent_a_response: p.agent_a_response,
-                  agent_b_response: p.agent_b_response,
-                  reflection_reasoning: p.reflection_reasoning,
-                  chunks_used: p.chunks_used, rating: null,
-                  language: p.seeker_profile?.language,
-                  seeker_level: p.seeker_profile?.level,
-                }
-                fetch("/api/conversation/save", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ ...convData, seeker_profile: p.seeker_profile }),
-                })
-                navigate(`/darshana/${p.session_id}`, { replace: false })
-                // Update history for next turn
-                setHistory(prev => [
-                  ...prev,
-                  { role: "user",      content: q },
-                  { role: "assistant", content: fullResponse },
-                ])
+                // PURE: side effects (save/navigate/history) ran above. Here we
+                // only mark the exchange done using values captured outside.
                 return {
-                  ...ex, done: true, conversationData: convData,
-                  events: { ...ex.events, reflection_winner: p.reflection_winner },
+                  ...ex, done: true, conversationData: doneConvData,
+                  events: { ...ex.events, reflection_winner: doneWinner },
                 }
               }
               default: return ex
