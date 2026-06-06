@@ -168,6 +168,7 @@ function ShankaraBackdrop() {
   return (
     <div
       aria-hidden
+      className="shankara-backdrop"
       style={{
         position: "fixed", top: 0, right: 0, bottom: 0,
         width: "min(46vw, 600px)", zIndex: 0, pointerEvents: "none",

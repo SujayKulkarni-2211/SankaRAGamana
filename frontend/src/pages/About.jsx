@@ -11,7 +11,7 @@ export default function About() {
         <p className="mono" style={{ fontSize: ".68rem", letterSpacing: ".16em", textTransform: "uppercase", color: "var(--ink-faint)", marginBottom: "var(--space-sm)" }}>
           colophon
         </p>
-        <h1 className="display" style={{ fontSize: "2.6rem", fontWeight: 500, color: "var(--ink)", lineHeight: 1.1, marginBottom: "var(--space-xs)", letterSpacing: "-.015em" }}>
+        <h1 className="display" style={{ fontSize: "clamp(2rem, 8vw, 2.6rem)", fontWeight: 500, color: "var(--ink)", lineHeight: 1.1, marginBottom: "var(--space-xs)", letterSpacing: "-.015em", wordBreak: "break-word" }}>
           Sanka<span style={{ color: "var(--flame)" }}>RĀG</span>amana
         </h1>
         <p className="deva" style={{ color: "var(--flame)", fontSize: "1.5rem", marginBottom: "var(--space-xl)" }}>
@@ -252,7 +252,7 @@ function Tech({ n, title, children }) {
         <span className="mono" style={{ fontSize: ".9rem", color: "var(--ink-faint)", flexShrink: 0, transition: "transform .3s var(--ease-ink)", transform: open ? "rotate(90deg)" : "none" }}>→</span>
       </button>
       <div style={{
-        maxHeight: open ? 400 : 0, overflow: "hidden",
+        maxHeight: open ? 600 : 0, overflow: "hidden",
         transition: "max-height .4s var(--ease-ink), opacity .3s",
         opacity: open ? 1 : 0,
       }}>

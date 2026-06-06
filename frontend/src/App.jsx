@@ -166,6 +166,9 @@ function Header({ user, onNewChat, displayLang, onLangChange }) {
   const navigate   = useNavigate()
   const location   = useLocation()
   const isChat     = location.pathname === "/" || location.pathname.startsWith("/darshana")
+  const [menuOpen, setMenuOpen] = useState(false)
+  // close the mobile menu whenever the route changes
+  useEffect(() => { setMenuOpen(false) }, [location.pathname])
 
   return (
     <header className="notranslate" style={{
@@ -175,15 +178,15 @@ function Header({ user, onNewChat, displayLang, onLangChange }) {
       borderBottom: "1px solid var(--border)",
       display: "flex", alignItems: "center",
       justifyContent: "space-between",
-      padding: "0 30px",
+      padding: "0 clamp(14px, 4vw, 30px)",
       backdropFilter: "blur(6px)",
     }}>
       {/* Logo — display serif. RĀG carries the flame; a small breathing
           ember sits before it like a lit lamp. */}
       <Link to="/" className="display" style={{
-        fontSize: 22, fontWeight: 500,
+        fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 500,
         color: "var(--ink)", textDecoration: "none",
-        letterSpacing: "-.01em",
+        letterSpacing: "-.01em", flexShrink: 0,
         display: "inline-flex", alignItems: "center", gap: 10,
       }}>
         <span style={{
@@ -201,30 +204,18 @@ function Header({ user, onNewChat, displayLang, onLangChange }) {
         </span>
       </Link>
 
-      {/* Nav */}
-      <nav style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      {/* Nav — full row on desktop */}
+      <nav className="only-desktop" style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <TranslateButton current={displayLang} onChange={onLangChange} />
         {isChat && (
-          <button
-            onClick={onNewChat}
-            style={{
-              fontSize: 13, color: "var(--text2)",
-              background: "none",
-              border: "1px solid var(--border2)",
-              borderRadius: 6, padding: "4px 12px",
-              cursor: "pointer", fontFamily: "inherit",
-              display: "flex", alignItems: "center", gap: 4,
-              transition: "all .15s",
-            }}
+          <button onClick={onNewChat} style={navBtn}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--saffron)"; e.currentTarget.style.color = "var(--saffron)" }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border2)"; e.currentTarget.style.color = "var(--text2)" }}
           >
             <span style={{ fontSize: 15, lineHeight: 1 }}>+</span> New
           </button>
         )}
-
         <NavLink to="/about">About</NavLink>
-
         {user ? (
           <>
             <NavLink to="/history">My Darśanas</NavLink>
@@ -233,8 +224,7 @@ function Header({ user, onNewChat, displayLang, onLangChange }) {
               style={{
                 fontSize: 13, color: "var(--muted)", background: "none",
                 border: "none", cursor: "pointer", fontFamily: "inherit",
-                padding: "4px 8px", borderRadius: 4,
-                transition: "color .15s",
+                padding: "4px 8px", borderRadius: 4, transition: "color .15s",
               }}
               onMouseEnter={e => e.currentTarget.style.color = "var(--text)"}
               onMouseLeave={e => e.currentTarget.style.color = "var(--muted)"}
@@ -242,25 +232,54 @@ function Header({ user, onNewChat, displayLang, onLangChange }) {
             <Avatar user={user} />
           </>
         ) : (
-          <button
-            onClick={signInWithGoogle}
-            style={{
-              display: "flex", alignItems: "center", gap: 6,
-              fontSize: 13, color: "var(--text2)",
-              background: "none",
-              border: "1px solid var(--border2)",
-              borderRadius: 6, padding: "5px 14px",
-              cursor: "pointer", fontFamily: "inherit",
-              transition: "all .15s",
-            }}
+          <button onClick={signInWithGoogle} style={{ ...navBtn, gap: 6, padding: "5px 14px" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--saffron)"; e.currentTarget.style.color = "var(--saffron)" }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border2)"; e.currentTarget.style.color = "var(--text2)" }}
           >
-            <GoogleIcon />
-            Sign in with Google
+            <GoogleIcon /> Sign in
           </button>
         )}
       </nav>
+
+      {/* Nav — compact on mobile: Translate + New stay, rest in a menu */}
+      <div className="only-mobile" style={{ alignItems: "center", gap: 6 }}>
+        <TranslateButton current={displayLang} onChange={onLangChange} />
+        {user && <Avatar user={user} />}
+        <button
+          aria-label="Menu" onClick={() => setMenuOpen(o => !o)}
+          style={{
+            ...navBtn, padding: "6px 9px", lineHeight: 1,
+            color: menuOpen ? "var(--flame)" : "var(--text2)",
+            borderColor: menuOpen ? "var(--flame)" : "var(--border2)",
+          }}
+        >
+          <span style={{ fontSize: 16, lineHeight: 1 }}>{menuOpen ? "✕" : "☰"}</span>
+        </button>
+      </div>
+
+      {/* Mobile dropdown */}
+      {menuOpen && (
+        <div className="only-mobile" style={{
+          position: "absolute", top: 58, right: "clamp(14px, 4vw, 30px)",
+          flexDirection: "column", alignItems: "stretch", gap: 2,
+          background: "var(--vellum)", border: "1px solid var(--rule-2)",
+          borderRadius: 10, padding: 8, minWidth: 180,
+          boxShadow: "0 8px 30px rgba(42,30,27,.16)", zIndex: 60,
+        }}>
+          {isChat && (
+            <MenuItem onClick={() => { onNewChat(); setMenuOpen(false) }}>+ New darśana</MenuItem>
+          )}
+          <MenuItem onClick={() => navigate("/about")}>About</MenuItem>
+          {user ? (
+            <>
+              <MenuItem onClick={() => navigate("/history")}>My Darśanas</MenuItem>
+              <MenuItem onClick={() => signOut().then(() => { navigate("/"); window.location.reload() })}>Sign out</MenuItem>
+            </>
+          ) : (
+            <MenuItem onClick={signInWithGoogle}>Sign in with Google</MenuItem>
+          )}
+        </div>
+      )}
     </header>
   )
 }
@@ -280,6 +299,34 @@ function NavLink({ to, children }) {
     >
       {children}
     </Link>
+  )
+}
+
+// Shared header-button base (used by desktop nav + mobile toggle).
+const navBtn = {
+  fontSize: 13, color: "var(--text2)", background: "none",
+  border: "1px solid var(--border2)", borderRadius: 6, padding: "4px 12px",
+  cursor: "pointer", fontFamily: "inherit",
+  display: "flex", alignItems: "center", gap: 4, transition: "all .15s",
+}
+
+// A row in the mobile dropdown menu.
+function MenuItem({ onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        textAlign: "left", background: "none", border: "none",
+        cursor: "pointer", fontFamily: "var(--font-body)",
+        fontSize: 15, color: "var(--ink-soft)",
+        padding: "10px 12px", borderRadius: 6, width: "100%",
+        transition: "background .15s, color .15s",
+      }}
+      onMouseEnter={e => { e.currentTarget.style.background = "var(--paper-3)"; e.currentTarget.style.color = "var(--flame-2)" }}
+      onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "var(--ink-soft)" }}
+    >
+      {children}
+    </button>
   )
 }
 
