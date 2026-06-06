@@ -9,6 +9,7 @@ httpx==0.27.2
 
 # Supabase
 supabase==2.7.4
+psycopg2-binary==2.9.12   # direct Postgres pool for atomic rate-limit upserts
 
 # Groq
 groq==0.11.0
@@ -21,3 +22,4 @@ numpy==1.26.4
 # Utilities
 python-dotenv==1.0.1
 langdetect==1.0.9
+deep-translator==1.11.4   # GoogleTranslator for the /api/translate endpoint

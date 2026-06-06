@@ -13,7 +13,8 @@ FROM node:18-slim AS frontend
 
 WORKDIR /frontend
 COPY frontend/package*.json ./
-RUN npm install
+# npm ci = clean, reproducible install straight from package-lock.json
+RUN npm ci
 COPY frontend/ ./
 
 # Supabase keys are build-time for Vite (import.meta.env.VITE_*). HF passes
