@@ -5,6 +5,7 @@ import FinalResponse from "../components/FinalResponse"
 import Feedback from "../components/Feedback"
 import Footer from "../components/Footer"
 import { signInWithGoogle } from "../lib/supabase"
+import shankaraBg from "../assets-shankara.js"   // base64 data-URI (no binary file → no LFS)
 
 const PLACEHOLDERS = [
   "Ask what you have always wondered…",
@@ -172,7 +173,7 @@ function ShankaraBackdrop() {
       style={{
         position: "fixed", top: 0, right: 0, bottom: 0,
         width: "min(46vw, 600px)", zIndex: 0, pointerEvents: "none",
-        backgroundImage: "url(/shankara-bg.jpg)",
+        backgroundImage: `url(${shankaraBg})`,
         backgroundSize: "cover",
         backgroundPosition: "right 30%",
         backgroundRepeat: "no-repeat",
