@@ -11,7 +11,7 @@ import json
 from dataclasses import dataclass
 from typing import List, Optional
 
-from backend.rag.groq_client import get_client
+from backend.rag.groq_client import get_client, chat as groq_chat
 from backend.rag.imprints import load_imprints
 
 REFLECTION_SYSTEM = """You are the Reflection Agent for SankaRĀGamana.
@@ -262,7 +262,7 @@ async def _retry_agent(
     model: str,
 ) -> str:
     try:
-        resp = get_client().chat.completions.create(
+        resp = groq_chat(
             model=model,
             messages=[
                 {"role": "system", "content": RETRY_SYSTEM.format(
@@ -297,7 +297,7 @@ async def run_reflection_agent(
 
     for _round in range(2):  # max 2 retry rounds
         try:
-            raw = get_client().chat.completions.create(
+            raw = groq_chat(
                 model="llama-3.3-70b-versatile",
                 messages=[
                     {"role": "system", "content": REFLECTION_SYSTEM.format(

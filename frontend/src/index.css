@@ -2,45 +2,91 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+  Temple at dawn. Warm stone, lamp-light, one flame.
+  Depth comes from layered warm light — not from going dark or brown.
+  Same variable NAMES as before so component files need no edits.
+*/
 :root {
-  /* Sringeri at dawn — white stone, morning light, one saffron flame */
-  --bg:       #FDFAF5;
-  --bg2:      #F6F1E6;
-  --surface:  #FFFFFF;
-  --border:   #E2D8C4;
-  --border2:  #C8BA9E;
+  /* Grounds — warm morning light on temple stone, layered for depth */
+  --bg:       #F4EDE2;   /* the room — warm stone, not parchment-flat */
+  --bg2:      #EDE3D4;   /* recessed surfaces — slightly deeper */
+  --surface:  #FBF6EE;   /* raised surfaces — where light falls (cards, bubbles) */
 
-  --text:     #1A1208;
-  --text2:    #4A3820;
-  --muted:    #8A7458;
+  /* Lines — like incised stone, soft not harsh */
+  --border:   #DDD0BC;
+  --border2:  #C9B89E;
 
-  --saffron:  #C8620A;
-  --saffron2: #A04E06;
-  --gold:     #9A7010;
+  /* Ink — manuscript, warm black-brown, never pure black */
+  --text:     #2B2018;   /* primary ink */
+  --text2:    #5C4A38;   /* secondary — aged ink */
+  --muted:    #8F7B62;   /* margin notes, captions */
 
-  --header:   #FAF6EE;
+  /* The flame — vermilion, used sparingly. This is the single accent. */
+  --saffron:  #C0451B;   /* lamp flame / kumkum */
+  --saffron2: #9E3514;   /* deeper, for hover/press */
+  --gold:     #A67C1A;   /* brass — secondary warm accent */
+
+  --header:   #F0E7D8;   /* header band — slightly distinct from room */
+
+  /* Spacing rhythm — 8px base grid (Linear lesson) */
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 40px;
+  --space-5: 64px;
+
+  /* Type families */
+  --font-body: 'Spectral', Georgia, 'Times New Roman', serif;
+  --font-deva: 'Tiro Devanagari Sanskrit', 'Noto Sans Devanagari', serif;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html {
-  font-size: 17px;
+  font-size: 18px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 body, #root {
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
-  font-family: 'Crimson Pro', Georgia, 'Times New Roman', serif;
-  line-height: 1.7;
+  font-family: var(--font-body);
+  line-height: 1.72;
+  /* faint warm vignette — like lamplight pooling, gives the room depth */
+  background-image:
+    radial-gradient(120% 80% at 50% -10%, #FBF5EB 0%, transparent 55%),
+    radial-gradient(100% 60% at 50% 110%, #EBE0CF 0%, transparent 50%);
+  background-attachment: fixed;
 }
 
-/* Scrollbar — like a thin line of teak */
-::-webkit-scrollbar { width: 5px; }
+/* Devanagari — manuscript hand, always large and breathing */
+.deva, [lang="sa"], [lang="hi"] {
+  font-family: var(--font-deva);
+  font-size: 1.18em;
+  line-height: 1.95;
+}
+
+/* Scrollbar — a thin line of brass */
+::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
-/* Selection — like camphor flame highlight */
-::selection { background: #4A3010; color: var(--text); }
+/* Selection — camphor flame */
+::selection { background: rgba(192, 69, 27, 0.16); color: var(--text); }
+
+/* Ink settling in — the streaming response fades in like ink on paper */
+@keyframes inkrise {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* A slow, warm pulse for the thinking state — a flame breathing, not a spinner */
+@keyframes flamebreath {
+  0%, 100% { opacity: 0.3; transform: scale(0.9); }
+  50%      { opacity: 1;   transform: scale(1); }
+}

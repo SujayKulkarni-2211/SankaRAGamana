@@ -7,7 +7,7 @@ Supports both regular and streaming generation.
 from dataclasses import dataclass
 from typing import List, Optional
 
-from backend.rag.groq_client import get_client
+from backend.rag.groq_client import get_client, chat as groq_chat
 from backend.rag.embedder import Embedder
 from backend.rag.retriever import retrieve
 
@@ -50,7 +50,7 @@ def _fmt(chunks: List[dict]) -> str:
 
 
 async def translate_to_sanskrit(query: str) -> str:
-    r = get_client().chat.completions.create(
+    r = groq_chat(
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": TRANSLATE_PROMPT.format(query=query)}],
         temperature=0.1,
@@ -64,7 +64,7 @@ async def run_agent_a(query: str, seeker_profile: dict) -> AgentResult:
         sanskrit_query = await translate_to_sanskrit(query)
         sa_embedding = _embedder.embed_query(sanskrit_query)
         chunks = await retrieve(sa_embedding, seeker_profile)
-        resp = get_client().chat.completions.create(
+        resp = groq_chat(
             model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": SYSTEM.format(chunks_formatted=_fmt(chunks))},
@@ -88,7 +88,7 @@ async def stream_agent_a(query: str, seeker_profile: dict):
         sanskrit_query = await translate_to_sanskrit(query)
         sa_embedding = _embedder.embed_query(sanskrit_query)
         chunks = await retrieve(sa_embedding, seeker_profile)
-        stream = get_client().chat.completions.create(
+        stream = groq_chat(
             model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": SYSTEM.format(chunks_formatted=_fmt(chunks))},

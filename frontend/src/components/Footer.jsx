@@ -2,24 +2,24 @@ export default function Footer() {
   return (
     <footer style={{
       textAlign: "center",
-      padding: "18px 16px 22px",
+      padding: "24px 16px 28px",
       borderTop: "1px solid var(--border)",
-      background: "var(--bg2)",
-      display: "flex", flexDirection: "column", gap: 5,
+      background: "var(--header)",
+      display: "flex", flexDirection: "column", gap: 8,
     }}>
-      <p style={{ fontSize: 12, color: "var(--muted)" }}>
+      <p style={{ fontSize: 12.5, color: "var(--muted)", letterSpacing: "0.01em" }}>
         Data:{" "}
         <A href="https://sanskritdocuments.org">sanskritdocuments.org</A>
         {" · "}
         <A href="https://gretil.sub.uni-goettingen.de">GRETIL</A>
       </p>
 
-      <p style={{ fontSize: 12, color: "var(--muted)", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+      <p style={{ fontSize: 12.5, color: "var(--muted)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
         <GithubIcon />
         <A href="https://github.com/SujayKulkarni-2211/SankaRAGamana">SankaRĀGamana</A>
       </p>
 
-      <p style={{ fontSize: 11, color: "#b8a888" }}>
+      <p style={{ fontSize: 12, color: "var(--muted)", opacity: 0.85, fontStyle: "italic", marginTop: 2 }}>
         <A href="https://sujaykulkarni-2211.github.io/sujayvkresume/cosmos.html" dim>
           Built by the grace of Ādi Śaṅkara and Devī Sarasvatī by Sujay V Kulkarni
         </A>
@@ -33,12 +33,14 @@ function A({ href, children, dim }) {
     <a
       href={href} target="_blank" rel="noreferrer"
       style={{
-        color: dim ? "#b8a888" : "var(--muted)",
-        textDecoration: "none",
+        color: "var(--muted)",
+        textDecoration: dim ? "none" : "underline",
+        textDecorationColor: "var(--border2)",
+        textUnderlineOffset: "2px",
         transition: "color .15s",
       }}
       onMouseEnter={e => e.currentTarget.style.color = "var(--saffron)"}
-      onMouseLeave={e => e.currentTarget.style.color = dim ? "#b8a888" : "var(--muted)"}
+      onMouseLeave={e => e.currentTarget.style.color = "var(--muted)"}
     >
       {children}
     </a>

@@ -94,29 +94,29 @@ async def generate_stream(question: str, user_id: Optional[str], client_ip: str,
     b_chunks, b_stream = await stream_agent_b(pipeline_q, seeker_profile, history=history or [])
 
     # Step 3: Agent A translation + chunks
-    yield sse("agent_a_translation", a_sa_query)
+    yield sse_json("agent_a_translation", a_sa_query)
     yield sse("agent_a_chunks", chunk_preview(a_chunks))
 
-    # Step 4: Stream Agent A tokens
+    # Step 4: Stream Agent A tokens — JSON-encoded so spaces survive SSE framing
     a_full = ""
     if a_stream:
         for chunk in a_stream:
             token = chunk.choices[0].delta.content or ""
             if token:
                 a_full += token
-                yield sse("agent_a_response", token)
+                yield sse_json("agent_a_response", token)
 
     # Step 5: Agent B chunks
     yield sse("agent_b_chunks", chunk_preview(b_chunks))
 
-    # Step 6: Stream Agent B tokens
+    # Step 6: Stream Agent B tokens — JSON-encoded so spaces survive SSE framing
     b_full = ""
     if b_stream:
         for chunk in b_stream:
             token = chunk.choices[0].delta.content or ""
             if token:
                 b_full += token
-                yield sse("agent_b_response", token)
+                yield sse_json("agent_b_response", token)
 
     # Step 7: Run reflection (non-streaming — it produces JSON)
     # Build AgentResult objects from accumulated text

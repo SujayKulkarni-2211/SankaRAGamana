@@ -6,7 +6,7 @@ Responds in seeker's language with pramāṇa rule. Supports conversation histor
 from dataclasses import dataclass
 from typing import List, Optional
 
-from backend.rag.groq_client import get_client
+from backend.rag.groq_client import get_client, chat as groq_chat
 from backend.rag.embedder import Embedder
 from backend.rag.retriever import retrieve
 
@@ -115,6 +115,7 @@ async def run_agent_b(query: str, seeker_profile: dict, history: list = None) ->
 
 async def stream_agent_b(query: str, seeker_profile: dict, history: list = None):
     """Returns (chunks, groq_stream)."""
+    chunks = []
     try:
         emb = _embedder.embed_query(query)
         chunks = await retrieve(emb, seeker_profile)
@@ -135,7 +136,7 @@ async def stream_agent_b(query: str, seeker_profile: dict, history: list = None)
         messages.extend(_history_messages(history or []))
         messages.append({"role": "user", "content": f"The seeker asks: {query}"})
 
-        stream = get_client().chat.completions.create(
+        stream = groq_chat(
             model="llama-3.3-70b-versatile",
             messages=messages,
             temperature=0.4,
@@ -144,4 +145,7 @@ async def stream_agent_b(query: str, seeker_profile: dict, history: list = None)
         )
         return chunks, stream
     except Exception as e:
-        return [], None
+        print(f"[agent_b] stream failed: {type(e).__name__}: {e}")
+        # Return chunks so reflection still has Agent B's retrieval context,
+        # even though the generation failed.
+        return chunks, None

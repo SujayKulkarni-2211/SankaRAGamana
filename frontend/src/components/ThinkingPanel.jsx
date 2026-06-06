@@ -1,39 +1,45 @@
 import { useState } from "react"
 
-const COLORS = {
-  blue:   { border: "#c8d8f0", dot: "#5b8fd4", label: "#3a6aaa" },
-  amber:  { border: "#e8d4a0", dot: "#c89030", label: "#9a6c10" },
-  purple: { border: "#d8c8e8", dot: "#9060c0", label: "#6a40a0" },
+// The inner process, rendered like marginalia — a commentator's hand in the
+// margin of a manuscript. Quiet, set aside, never competing with the response.
+
+const SECTION = {
+  seeker:     { rule: "#C9B89E", label: "var(--muted)" },
+  agent:      { rule: "#D4A574", label: "var(--gold)" },
+  reflection: { rule: "#C08A9E", label: "#9E5A6E" },
 }
 
-function Section({ color, label, children }) {
+function Note({ kind, label, children }) {
   const [open, setOpen] = useState(false)
-  const c = COLORS[color]
+  const c = SECTION[kind]
 
   return (
-    <div style={{ borderLeft: `2px solid ${c.border}`, paddingLeft: 12, marginBottom: 6 }}>
+    <div style={{
+      borderLeft: `1.5px solid ${c.rule}`,
+      paddingLeft: 14,
+      marginBottom: 10,
+    }}>
       <button
         onClick={() => setOpen(o => !o)}
         style={{
-          display: "flex", alignItems: "center", gap: 7,
+          display: "flex", alignItems: "center", gap: 8,
           background: "none", border: "none", cursor: "pointer",
-          color: c.label, fontSize: 12,
+          color: c.label, fontSize: 11.5,
+          letterSpacing: "0.04em", textTransform: "uppercase",
           width: "100%", textAlign: "left",
-          padding: "3px 0", fontFamily: "inherit",
+          padding: "2px 0", fontFamily: "var(--font-body)",
         }}
       >
-        <span style={{
-          width: 6, height: 6, borderRadius: "50%",
-          background: c.dot, flexShrink: 0,
-        }} />
         <span style={{ flex: 1, fontWeight: 500 }}>{label}</span>
-        <span style={{ fontSize: 9, color: "var(--muted)" }}>{open ? "▴" : "▾"}</span>
+        <span style={{ fontSize: 9, color: "var(--muted)", opacity: 0.6 }}>
+          {open ? "—" : "+"}
+        </span>
       </button>
 
       {open && (
         <div style={{
-          marginTop: 6, fontSize: 13,
-          color: "var(--text2)", lineHeight: 1.65,
+          marginTop: 7, fontSize: 13.5,
+          color: "var(--text2)", lineHeight: 1.7,
         }}>
           {children}
         </div>
@@ -57,77 +63,74 @@ export default function ThinkingPanel({ events }) {
   if (!profile && !saQuery && !aText && !bText && !reflText) return null
 
   return (
-    <div style={{ marginBottom: 18 }}>
+    <div style={{ marginBottom: 22 }}>
       <button
         onClick={() => setOpen(o => !o)}
         style={{
           background: "none", border: "none", cursor: "pointer",
-          display: "flex", alignItems: "center", gap: 5,
-          fontSize: 12, color: "var(--muted)",
-          fontFamily: "inherit", padding: "0 0 8px",
-          transition: "color .15s",
+          display: "flex", alignItems: "center", gap: 7,
+          fontSize: 11.5, color: "var(--muted)",
+          fontFamily: "var(--font-body)", padding: "0 0 6px",
+          letterSpacing: "0.03em", fontStyle: "italic",
+          transition: "color .2s",
         }}
         onMouseEnter={e => e.currentTarget.style.color = "var(--text2)"}
         onMouseLeave={e => e.currentTarget.style.color = "var(--muted)"}
       >
-        <span style={{
-          width: 5, height: 5, borderRadius: "50%",
-          background: "var(--muted)", display: "inline-block",
-        }} />
-        {open ? "Hide inner process" : "See inner process"}
-        <span style={{ fontSize: 9 }}>{open ? "▴" : "▾"}</span>
+        <span style={{ fontSize: 13, opacity: 0.7 }}>{open ? "❧" : "❧"}</span>
+        {open ? "hide the inner process" : "the inner process"}
       </button>
 
       {open && (
         <div style={{
           background: "var(--surface)",
           border: "1px solid var(--border)",
-          borderRadius: 8,
-          padding: "14px 16px",
-          marginBottom: 20,
+          borderRadius: 4,
+          padding: "18px 20px",
+          marginTop: 4, marginBottom: 6,
+          boxShadow: "0 1px 2px rgba(43,32,24,0.04)",
         }}>
           {profile && (
-            <Section color="blue" label={`Seeker — ${profile.level} · ${profile.intent}`}>
-              <div style={{ display: "grid", gridTemplateColumns: "70px 1fr", rowGap: 2 }}>
+            <Note kind="seeker" label={`Seeker · ${profile.level} · ${profile.intent}`}>
+              <div style={{ display: "grid", gridTemplateColumns: "64px 1fr", rowGap: 3, fontSize: 13 }}>
                 <span style={{ color: "var(--muted)" }}>level</span><span>{profile.level}</span>
                 <span style={{ color: "var(--muted)" }}>intent</span><span>{profile.intent}</span>
                 <span style={{ color: "var(--muted)" }}>tone</span><span>{profile.emotional_tone}</span>
-                <span style={{ color: "var(--muted)" }}>lang</span><span>{profile.language}</span>
+                <span style={{ color: "var(--muted)" }}>language</span><span>{profile.language}</span>
               </div>
-            </Section>
+            </Note>
           )}
 
-          <Section color="amber" label={`Agent A — Sanskrit${saQuery ? ` · ${saQuery}` : ""}`}>
+          <Note kind="agent" label={`Through Sanskrit${saQuery ? ` · ${saQuery}` : ""}`}>
             {aChunks.length > 0 && (
-              <p style={{ color: "var(--muted)", marginBottom: 4 }}>
-                Texts: {[...new Set(aChunks.map(c => c.text_name))].join(", ")}
+              <p style={{ color: "var(--muted)", marginBottom: 6, fontSize: 12, fontStyle: "italic" }}>
+                from {[...new Set(aChunks.map(c => c.text_name))].join(", ")}
               </p>
             )}
             {aText && (
-              <p style={{
-                fontFamily: "'Noto Sans Devanagari', sans-serif",
-                fontSize: 13, color: "var(--text)", lineHeight: 1.7,
-                whiteSpace: "pre-wrap", marginTop: 4,
+              <p className="deva" style={{
+                fontSize: 14.5, color: "var(--text)", lineHeight: 1.85,
+                whiteSpace: "pre-wrap", marginTop: 4, fontStyle: "normal",
               }}>{aText}</p>
             )}
-          </Section>
+          </Note>
 
-          <Section color="amber" label="Agent B — Original Language">
+          <Note kind="agent" label="In the seeker's tongue">
             {bChunks.length > 0 && (
-              <p style={{ color: "var(--muted)", marginBottom: 4 }}>
-                Texts: {[...new Set(bChunks.map(c => c.text_name))].join(", ")}
+              <p style={{ color: "var(--muted)", marginBottom: 6, fontSize: 12, fontStyle: "italic" }}>
+                from {[...new Set(bChunks.map(c => c.text_name))].join(", ")}
               </p>
             )}
             {bText && (
-              <p style={{ lineHeight: 1.7, whiteSpace: "pre-wrap", marginTop: 4 }}>{bText}</p>
+              <p style={{ lineHeight: 1.75, whiteSpace: "pre-wrap", marginTop: 4 }}>{bText}</p>
             )}
-          </Section>
+          </Note>
 
-          <Section color="purple" label={`Reflection${winner ? ` · Selected Agent ${winner.toUpperCase()}` : ""}`}>
+          <Note kind="reflection" label={`Reflection${winner ? ` · chose ${winner.toUpperCase()}` : ""}`}>
             {reflText && (
-              <p style={{ lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{reflText}</p>
+              <p style={{ lineHeight: 1.75, whiteSpace: "pre-wrap", fontStyle: "italic" }}>{reflText}</p>
             )}
-          </Section>
+          </Note>
         </div>
       )}
     </div>

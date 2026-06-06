@@ -10,7 +10,7 @@ import json
 import os
 from typing import Optional
 
-from backend.rag.groq_client import get_client
+from backend.rag.groq_client import get_client, chat as groq_chat
 
 
 PROFILER_PROMPT = """You are a profiler. Analyze the seeker's query and return a JSON object.
@@ -137,7 +137,7 @@ async def profile_seeker(query: str, history: list = None) -> dict:
         prompt = PROFILER_PROMPT.format(query=query)
         if history_ctx:
             prompt = history_ctx + "\n\nCurrent query: " + query + "\n\n" + prompt
-        response = get_client().chat.completions.create(
+        response = groq_chat(
             model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "user", "content": prompt},

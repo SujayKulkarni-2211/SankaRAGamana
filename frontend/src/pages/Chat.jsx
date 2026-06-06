@@ -78,12 +78,11 @@ function SignInModal({ onClose }) {
         }}
         onClick={e => e.stopPropagation()}
       >
-        <p style={{
-          fontFamily: "'Noto Sans Devanagari', sans-serif",
-          fontSize: 22, color: "var(--saffron)",
-          marginBottom: 6,
+        <p className="deva" style={{
+          fontSize: 26, color: "var(--saffron)",
+          marginBottom: 10, fontStyle: "normal", lineHeight: 1.5,
         }}>अथातो ब्रह्म जिज्ञासा</p>
-        <p style={{ fontSize: 18, color: "var(--text)", marginBottom: 8, fontWeight: 600 }}>
+        <p style={{ fontSize: 19, color: "var(--text)", marginBottom: 8, fontWeight: 600 }}>
           Continue your inquiry
         </p>
         <p style={{ fontSize: 15, color: "var(--text2)", lineHeight: 1.65, marginBottom: 28 }}>
@@ -137,13 +136,14 @@ function GoogleIcon() {
 function Exchange({ ex }) {
   return (
     <article style={{ marginBottom: 40 }}>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 26 }}>
         <p style={{
-          background: "var(--surface)", border: "1px solid var(--border2)",
-          borderRadius: "16px 16px 4px 16px",
-          padding: "12px 18px", maxWidth: "70%",
-          fontSize: 17, color: "var(--text)", lineHeight: 1.65,
-          boxShadow: "0 2px 8px rgba(0,0,0,.06)",
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          borderRadius: "14px 14px 3px 14px",
+          padding: "13px 19px", maxWidth: "72%",
+          fontSize: 16.5, color: "var(--text)", lineHeight: 1.6,
+          boxShadow: "0 2px 10px rgba(43,32,24,0.05)",
         }}>{ex.question}</p>
       </div>
 
@@ -328,16 +328,25 @@ export default function Chat({ user, displayLang }) {
                 return { ...ex, rateLimited: JSON.parse(data), done: true }
               case "profile":
                 return { ...ex, events: { ...ex.events, profile: JSON.parse(data) } }
-              case "agent_a_translation":
-                return { ...ex, events: { ...ex.events, agent_a_translation: data } }
+              case "agent_a_translation": {
+                let v = data
+                try { v = JSON.parse(data) } catch { /* fallback */ }
+                return { ...ex, events: { ...ex.events, agent_a_translation: v } }
+              }
               case "agent_a_chunks":
                 return { ...ex, events: { ...ex.events, agent_a_chunks: JSON.parse(data) } }
-              case "agent_a_response":
-                return { ...ex, events: { ...ex.events, agent_a_response_tokens: [...(ex.events.agent_a_response_tokens||[]), data] } }
+              case "agent_a_response": {
+                let t = data
+                try { t = JSON.parse(data) } catch { /* fallback */ }
+                return { ...ex, events: { ...ex.events, agent_a_response_tokens: [...(ex.events.agent_a_response_tokens||[]), t] } }
+              }
               case "agent_b_chunks":
                 return { ...ex, events: { ...ex.events, agent_b_chunks: JSON.parse(data) } }
-              case "agent_b_response":
-                return { ...ex, events: { ...ex.events, agent_b_response_tokens: [...(ex.events.agent_b_response_tokens||[]), data] } }
+              case "agent_b_response": {
+                let t = data
+                try { t = JSON.parse(data) } catch { /* fallback */ }
+                return { ...ex, events: { ...ex.events, agent_b_response_tokens: [...(ex.events.agent_b_response_tokens||[]), t] } }
+              }
               case "reflection_reasoning": {
                 let r = data
                 try { r = JSON.parse(data) } catch { /* fallback */ }
@@ -415,18 +424,32 @@ export default function Chat({ user, displayLang }) {
               <div style={{
                 display: "flex", flexDirection: "column",
                 alignItems: "center", justifyContent: "center",
-                height: "calc(100vh - 240px)",
-                textAlign: "center", gap: 14, opacity: 0.45, userSelect: "none",
+                height: "calc(100vh - 280px)",
+                textAlign: "center", userSelect: "none",
+                animation: "inkrise 0.9s ease-out",
               }}>
-                <p style={{
-                  fontFamily: "'Noto Sans Devanagari', sans-serif",
-                  fontSize: 48, color: "var(--text)", lineHeight: 1.3,
-                  letterSpacing: "0.02em",
+                {/* the flame */}
+                <span style={{
+                  width: 10, height: 16,
+                  borderRadius: "50% 50% 50% 50% / 65% 65% 35% 35%",
+                  background: "linear-gradient(180deg, #E0691B 0%, #C0451B 70%)",
+                  display: "block", marginBottom: 36,
+                  boxShadow: "0 0 24px rgba(192,69,27,0.35)",
+                  animation: "flamebreath 3.2s ease-in-out infinite",
+                }} />
+                <p className="deva" style={{
+                  fontSize: 54, color: "var(--text)", lineHeight: 1.35,
+                  letterSpacing: "0.01em", fontStyle: "normal",
+                  marginBottom: 18,
                 }}>
                   तत्त्वमसि
                 </p>
-                <p style={{ fontSize: 15, color: "var(--muted)", fontStyle: "italic", letterSpacing: "0.04em" }}>
-                  Begin your inquiry below
+                <p style={{
+                  fontSize: 16, color: "var(--text2)",
+                  fontStyle: "italic", letterSpacing: "0.02em",
+                  maxWidth: 340, lineHeight: 1.7,
+                }}>
+                  That thou art. Bring your question to Śaṅkara's presence.
                 </p>
               </div>
             )}
@@ -437,12 +460,13 @@ export default function Chat({ user, displayLang }) {
 
         {/* Input */}
         <div style={{
-          borderTop: "1px solid var(--border)", background: "var(--bg2)",
-          padding: "14px 24px 20px",
+          borderTop: "1px solid var(--border)",
+          background: "var(--header)",
+          padding: "18px 24px 22px",
         }}>
           <form
             onSubmit={e => { e.preventDefault(); submit() }}
-            style={{ maxWidth: 680, margin: "0 auto", display: "flex", gap: 10, alignItems: "flex-end" }}
+            style={{ maxWidth: 680, margin: "0 auto", display: "flex", gap: 12, alignItems: "flex-end" }}
           >
             <textarea
               ref={textareaRef}
@@ -455,34 +479,35 @@ export default function Chat({ user, displayLang }) {
               style={{
                 flex: 1, background: "var(--surface)",
                 border: "1px solid var(--border2)",
-                borderRadius: 10, padding: "13px 18px",
-                fontSize: 17, fontFamily: "'Crimson Pro', Georgia, serif",
+                borderRadius: 12, padding: "14px 20px",
+                fontSize: 17, fontFamily: "var(--font-body)",
                 color: "var(--text)", resize: "none", outline: "none",
-                lineHeight: 1.6, minHeight: 52, maxHeight: 180, overflowY: "auto",
-                boxShadow: "0 1px 4px rgba(0,0,0,.06)",
-                transition: "border-color .2s, box-shadow .2s",
-                opacity: streaming ? 0.65 : 1,
+                lineHeight: 1.6, minHeight: 54, maxHeight: 180, overflowY: "auto",
+                boxShadow: "0 1px 3px rgba(43,32,24,0.05)",
+                transition: "border-color .25s, box-shadow .25s",
+                opacity: streaming ? 0.6 : 1,
               }}
               onFocus={e => {
                 e.target.style.borderColor = "var(--saffron)"
-                e.target.style.boxShadow = "0 0 0 3px rgba(200,98,10,.08)"
+                e.target.style.boxShadow = "0 0 0 3px rgba(192,69,27,.07)"
               }}
               onBlur={e => {
                 e.target.style.borderColor = "var(--border2)"
-                e.target.style.boxShadow = "0 1px 3px rgba(0,0,0,.06)"
+                e.target.style.boxShadow = "0 1px 3px rgba(43,32,24,0.05)"
               }}
             />
             <button
               type="submit"
               disabled={streaming || !input.trim()}
               style={{
-                background: "var(--saffron)", border: "none", borderRadius: 9,
-                padding: "13px 22px", fontSize: 16, fontWeight: 600,
-                fontFamily: "'Crimson Pro', Georgia, serif",
-                color: "#fff", flexShrink: 0, letterSpacing: "0.01em", minWidth: 70,
+                background: "var(--saffron)", border: "none", borderRadius: 11,
+                padding: "14px 26px", fontSize: 16, fontWeight: 500,
+                fontFamily: "var(--font-body)", letterSpacing: "0.03em",
+                color: "#FBF6EE", flexShrink: 0, minWidth: 76,
                 cursor: (streaming || !input.trim()) ? "default" : "pointer",
-                opacity: (streaming || !input.trim()) ? 0.4 : 1,
-                transition: "opacity .15s, background .15s",
+                opacity: (streaming || !input.trim()) ? 0.35 : 1,
+                boxShadow: (streaming || !input.trim()) ? "none" : "0 2px 8px rgba(192,69,27,0.22)",
+                transition: "opacity .2s, background .2s, box-shadow .2s",
               }}
               onMouseEnter={e => { if (!streaming && input.trim()) e.currentTarget.style.background = "var(--saffron2)" }}
               onMouseLeave={e => { e.currentTarget.style.background = "var(--saffron)" }}

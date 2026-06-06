@@ -170,21 +170,29 @@ function Header({ user, onNewChat, displayLang, onLangChange }) {
   return (
     <header className="notranslate" style={{
       position: "sticky", top: 0, zIndex: 50,
-      height: 54,
+      height: 58,
       background: "var(--header)",
       borderBottom: "1px solid var(--border)",
       display: "flex", alignItems: "center",
       justifyContent: "space-between",
-      padding: "0 28px",
+      padding: "0 30px",
+      backdropFilter: "blur(6px)",
     }}>
-      {/* Logo */}
+      {/* Logo — RĀG carries the flame, distinct but quiet */}
       <Link to="/" style={{
-        fontFamily: "'Crimson Pro', Georgia, serif",
-        fontSize: 19, fontWeight: 600,
+        fontFamily: "var(--font-body)",
+        fontSize: 20, fontWeight: 500,
         color: "var(--text)", textDecoration: "none",
-        letterSpacing: "-0.01em",
+        letterSpacing: "0.005em",
+        display: "inline-flex", alignItems: "baseline",
       }}>
-        SankaR<span style={{ color: "var(--saffron)" }}>Ā</span>Gamana
+        <span>Sanka</span>
+        <span style={{
+          color: "var(--saffron)",
+          fontWeight: 600,
+          letterSpacing: "0.01em",
+        }}>RĀG</span>
+        <span>amana</span>
       </Link>
 
       {/* Nav */}
@@ -256,10 +264,10 @@ function NavLink({ to, children }) {
     <Link
       to={to}
       style={{
-        fontSize: 13, color: "var(--muted)",
+        fontSize: 14, color: "var(--muted)",
         textDecoration: "none", padding: "4px 8px",
         borderRadius: 4, transition: "color .15s",
-        fontFamily: "'Crimson Pro', Georgia, serif",
+        fontFamily: "var(--font-body)",
       }}
       onMouseEnter={e => e.currentTarget.style.color = "var(--text)"}
       onMouseLeave={e => e.currentTarget.style.color = "var(--muted)"}
