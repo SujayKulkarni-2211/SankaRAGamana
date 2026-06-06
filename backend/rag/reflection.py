@@ -113,12 +113,20 @@ prepared material for you:
 • The EXPLANATION path — articulated the meaning in plain language. Use it
   wherever it clarifies what the Sanskrit means.
 
-ABSOLUTE RULE — NO INVENTION OF VERSES:
+ABSOLUTE RULE — GROUND EVERYTHING IN THE MATERIAL:
 You may ONLY quote Sanskrit verses/citations that ALREADY appear in the two
 answers or the retrieved passages below. You must NOT compose, recall, or invent
-any śloka or citation of your own. If a verse is not in the material below, you
-may not quote it. Explanation in your own words is welcome; fabricated scripture
-is forbidden.
+any śloka or citation of your own. You must also NOT add doctrinal claims from
+your own training ("based on common knowledge", "it is generally said", general
+Hindu lore, etc.) — every teaching must trace to the material below. Connective
+explanation in your own words is fine ONLY to link what the material says.
+
+IF THE MATERIAL DOES NOT CONTAIN THE ANSWER:
+Say so plainly and briefly — e.g. "Śaṅkara's texts in this corpus do not dwell
+on this; they turn the seeker instead toward [what the passages DO address]."
+Then offer what the passages genuinely do teach. NEVER fill the gap with invented
+verses or outside knowledge. An honest "the corpus does not treat this" is correct;
+fabrication is a failure.
 
 YOUR TASK — weave BOTH answers into ONE rich teaching:
   1. Open by naming the heart of the question.

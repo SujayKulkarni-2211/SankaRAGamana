@@ -1,7 +1,4 @@
 import os
-import json
-import math
-from pathlib import Path
 from typing import List, Optional, Dict
 
 from supabase import create_client, Client
@@ -16,38 +13,26 @@ def get_client() -> Client:
     return _client
 
 
-# ── Book centroids ──────────────────────────────────────────────────────────
-# Each book has an average (L2-normalised) embedding. Comparing the query to a
-# book's centroid tells us whether that book is GENUINELY about the topic, vs.
-# merely having a few locally-similar chunks. This lets us tell apart honest
-# domination ("this book really is about this") from lazy/volume flooding.
-_CENTROIDS_PATH = Path(__file__).parent / "data" / "book_centroids.json"
-_centroids: Optional[Dict[str, list]] = None
-
-
-def _load_centroids() -> Dict[str, list]:
-    global _centroids
-    if _centroids is None:
-        _centroids = {}
-        try:
-            raw = json.loads(_CENTROIDS_PATH.read_text())
-            _centroids = {tn: d["centroid"] for tn, d in raw.items()}
-        except Exception as e:
-            print(f"[retriever] could not load book centroids: {e}")
-            _centroids = {}
-    return _centroids
-
-
-def _book_similarity(query_embedding: List[float], text_name: str) -> float:
-    """Cosine similarity between query and a book's centroid (0 if unknown).
-    query_embedding need not be normalised; centroids already are."""
-    cents = _load_centroids()
-    c = cents.get(text_name)
-    if not c:
-        return 0.0
-    dot = sum(q * v for q, v in zip(query_embedding, c))
-    qnorm = math.sqrt(sum(q * q for q in query_embedding)) or 1.0
-    return dot / qnorm
+# ── Book centroids (in Supabase) ────────────────────────────────────────────
+# Each book has an average embedding (its centroid) stored in the book_centroids
+# table and refreshed in-database from corpus_chunks. Comparing the query to a
+# book's centroid tells us whether the book is GENUINELY about the topic vs.
+# merely having a few locally-similar chunks — distinguishing honest domination
+# from lazy/volume flooding.
+#
+# Scalable: add/remove/re-embed texts, then `select refresh_book_centroids();`
+# and every book's centroid is recomputed in the DB. No app-side state.
+def _fetch_book_similarities(query_embedding: List[float]) -> Dict[str, float]:
+    """One RPC call returns cosine similarity of the query to EVERY book's
+    centroid. Returns {} on failure so retrieval degrades gracefully."""
+    try:
+        resp = get_client().rpc(
+            "match_book_centroids", {"query_embedding": query_embedding}
+        ).execute()
+        return {row["text_name"]: row["similarity"] for row in (resp.data or [])}
+    except Exception as e:
+        print(f"[retriever] match_book_centroids failed: {e}")
+        return {}
 
 
 # How many chunks the agents finally see. A paṇḍita draws on several sources,
@@ -85,20 +70,17 @@ def _book_decay(book_sim: float) -> float:
     return DIVERSITY_DECAY_MAX - frac * (DIVERSITY_DECAY_MAX - DIVERSITY_DECAY_MIN)
 
 
-def _diversity_select(candidates: List[dict], k: int, query_embedding: List[float]) -> List[dict]:
+PRIMARY_BOOST = 0.06  # boost for texts the profiler explicitly named (deity/topic)
+
+
+def _diversity_select(candidates: List[dict], k: int, book_sim: Dict[str, float],
+                      primary_texts: Optional[set] = None) -> List[dict]:
     """
     Greedy selection: prefer high similarity, but discount repeated sources by
     an amount that depends on how genuinely on-topic each book is (its centroid
-    similarity to the query). Honest domination is allowed; volume flooding and
-    lazy clustering are not. The Gītā Bhāṣya gets a small universal-text boost.
+    similarity to the query, from book_sim). Honest domination is allowed;
+    volume flooding and lazy clustering are not. The Gītā gets a small boost.
     """
-    # Precompute book-level centroid similarity for the texts present.
-    book_sim: dict = {}
-    for c in candidates:
-        tn = c.get("text_name")
-        if tn not in book_sim:
-            book_sim[tn] = _book_similarity(query_embedding, tn)
-
     chosen: List[dict] = []
     per_text_count: dict = {}
     pool = list(candidates)
@@ -113,6 +95,8 @@ def _diversity_select(candidates: List[dict], k: int, query_embedding: List[floa
             adjusted = sim - decay * seen
             if tn == GITA_TEXT:
                 adjusted += GITA_BOOST
+            if primary_texts and tn in primary_texts:
+                adjusted += PRIMARY_BOOST
             if adjusted > best_score:
                 best, best_score, best_i = c, adjusted, i
         chosen.append(best)
@@ -142,6 +126,10 @@ async def retrieve(
     # answers can cite and explain multiple sources like a learned teacher.
     strategy = seeker_profile.get("retrieval_strategy", {})
     k = max(strategy.get("top_k", FINAL_K), FINAL_K)
+    # Texts the profiler explicitly named (deity/topic overrides). NOT a filter —
+    # we fetch their best chunks into the pool and give them a boost so niche
+    # texts (e.g. a deity stotra) can surface where pure similarity misses them.
+    primary_texts = set(strategy.get("primary_texts", []))
 
     client = get_client()
 
@@ -153,7 +141,25 @@ async def retrieve(
         match_threshold=0.0,
     )
 
-    results = _diversity_select(candidates, k, query_embedding)
+    # Ensure named texts have candidates in the pool (a boost can't lift what
+    # isn't there). Fetch their best chunks specifically and merge in.
+    if primary_texts:
+        seen = {c.get("chunk_id") for c in candidates}
+        extra = _vector_search(
+            client, query_embedding, top_k=4,
+            text_filter=list(primary_texts), match_threshold=0.0,
+        )
+        for c in extra:
+            if c.get("chunk_id") not in seen:
+                candidates.append(c)
+                seen.add(c.get("chunk_id"))
+
+    # One RPC: query-vs-every-book centroid similarity (the laziness signal).
+    # Stored in Supabase (book_centroids table) so adding/re-embedding texts +
+    # refresh_book_centroids() keeps it in sync — no app-side recompute.
+    book_sim = _fetch_book_similarities(query_embedding)
+
+    results = _diversity_select(candidates, k, book_sim, primary_texts)
 
     return results
 

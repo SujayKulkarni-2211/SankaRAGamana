@@ -13,8 +13,16 @@ from backend.rag.retriever import retrieve
 
 _embedder = Embedder()
 
-TRANSLATE_PROMPT = """Translate the following to Sanskrit only.
-Return only Devanagari Sanskrit. No explanation, no transliteration, no English. Only Sanskrit.
+TRANSLATE_PROMPT = """Translate the seeker's question into pure classical Sanskrit
+(संस्कृतम्) — the language of Śaṅkara's texts. NOT Hindi, NOT Sanskritised Hindi.
+
+Rules:
+- Use classical Sanskrit vocabulary and grammar (vibhakti, correct case endings).
+- Keep proper names in their Sanskrit form (Ganesha→गणेशः, Self→आत्मन्).
+- Output ONLY the Devanagari Sanskrit question. No transliteration, no English,
+  no explanation, no quotes.
+- It must read as a question a paṇḍita would actually ask.
+
 Text: {query}"""
 
 SYSTEM = """You are SankaRĀGamana presenting the wisdom of Ādi Śaṅkarācārya.
@@ -100,4 +108,5 @@ async def stream_agent_a(query: str, seeker_profile: dict):
         )
         return sanskrit_query, chunks, stream
     except Exception as e:
+        print(f"[agent_a] stream failed: {type(e).__name__}: {e}")
         return "", [], None
