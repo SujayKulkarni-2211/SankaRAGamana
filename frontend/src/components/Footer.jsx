@@ -1,29 +1,41 @@
 export default function Footer() {
   return (
     <footer style={{
-      textAlign: "center",
-      padding: "24px 16px 28px",
-      borderTop: "1px solid var(--border)",
-      background: "var(--header)",
-      display: "flex", flexDirection: "column", gap: 8,
+      borderTop: "1px solid var(--rule)",
+      background: "var(--paper-2)",
+      padding: "var(--space-lg) var(--space-md)",
     }}>
-      <p style={{ fontSize: 12.5, color: "var(--muted)", letterSpacing: "0.01em" }}>
-        Data:{" "}
-        <A href="https://sanskritdocuments.org">sanskritdocuments.org</A>
-        {" · "}
-        <A href="https://gretil.sub.uni-goettingen.de">GRETIL</A>
-      </p>
+      <div style={{
+        maxWidth: "var(--measure)", margin: "0 auto",
+        display: "flex", flexDirection: "column", gap: "var(--space-sm)",
+        alignItems: "center", textAlign: "center",
+      }}>
+        {/* a small flame seal */}
+        <span style={{
+          width: 6, height: 10,
+          borderRadius: "50% 50% 50% 50% / 62% 62% 38% 38%",
+          background: "linear-gradient(180deg,#D2611C,#B23A1E)",
+          marginBottom: 2, opacity: .8,
+        }} />
 
-      <p style={{ fontSize: 12.5, color: "var(--muted)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-        <GithubIcon />
-        <A href="https://github.com/SujayKulkarni-2211/SankaRAGamana">SankaRĀGamana</A>
-      </p>
+        <p className="mono" style={{ fontSize: ".7rem", letterSpacing: ".06em", color: "var(--ink-faint)" }}>
+          sources ·{" "}
+          <A href="https://sanskritdocuments.org">sanskritdocuments.org</A>
+          {"  ·  "}
+          <A href="https://gretil.sub.uni-goettingen.de">GRETIL</A>
+        </p>
 
-      <p style={{ fontSize: 12, color: "var(--muted)", opacity: 0.85, fontStyle: "italic", marginTop: 2 }}>
-        <A href="https://sujaykulkarni-2211.github.io/sujayvkresume/cosmos.html" dim>
-          Built by the grace of Ādi Śaṅkara and Devī Sarasvatī by Sujay V Kulkarni
-        </A>
-      </p>
+        <p style={{ fontSize: 13, color: "var(--ink-soft)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+          <GithubIcon />
+          <A href="https://github.com/SujayKulkarni-2211/SankaRAGamana">SankaRĀGamana</A>
+        </p>
+
+        <p style={{ fontSize: 12.5, color: "var(--ink-faint)", fontStyle: "italic", lineHeight: 1.6, maxWidth: 440 }}>
+          <A href="https://sujaykulkarni-2211.github.io/sujayvkresume/cosmos.html" dim>
+            Built by the grace of Ādi Śaṅkara and Devī Sarasvatī by Sujay V Kulkarni
+          </A>
+        </p>
+      </div>
     </footer>
   )
 }

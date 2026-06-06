@@ -6,7 +6,12 @@ import Feedback from "../components/Feedback"
 import Footer from "../components/Footer"
 import { signInWithGoogle } from "../lib/supabase"
 
-const PLACEHOLDERS = ["अथातो ब्रह्म जिज्ञासा…", "Ask Śaṅkarācārya…", "ಶಂಕರರನ್ನು ಕೇಳಿ…"]
+const PLACEHOLDERS = [
+  "Ask what you have always wondered…",
+  "अथातो ब्रह्म जिज्ञासा — now, therefore, the inquiry into Brahman…",
+  "What is the Self? What is real?",
+  "Bring your question to Śaṅkara's presence…",
+]
 
 // Script-range detectors — fast, no API call needed
 const DEVA_RE    = /[ऀ-ॿ]/       // Sanskrit / Hindi / Marathi
@@ -132,39 +137,222 @@ function GoogleIcon() {
   )
 }
 
+// ─── Opening ──────────────────────────────────────────────────────────────────
+// The threshold. The praṇām-śloka to Śaṅkara as the typographic centerpiece,
+// a faint yantra breathing behind it, and real questions a seeker may ask —
+// each a single tap away.
+const STOTRA = [
+  "श्रुतिस्मृतिपुराणानाम् आलयं करुणालयम् ।",
+  "नमामि भगवत्पादं शङ्करं लोकशङ्करम् ॥",
+]
+
+const SEED_QUESTIONS = [
+  "ब्रह्म किम्? — What is Brahman?",
+  "Who am I, truly?",
+  "What is māyā, and why does the world appear?",
+  "How do I begin a spiritual journey?",
+  "What does “Tat tvam asi” mean?",
+  "How can I be free from suffering?",
+]
+
+// A faint Śaṅkara presence behind the page — Raja Ravi Varma's public-domain
+// painting, anchored to the far right and dissolved into the paper on every
+// edge so it reads as a watermark in the margin, never a hard-edged photo that
+// collides with the text.
+function ShankaraBackdrop() {
+  // Two stacked masks: a left→right fade (so it never reaches the text column)
+  // and a vertical fade (so the top/bottom edges melt into the page).
+  const mask =
+    "linear-gradient(to left, #000 0%, #000 28%, transparent 82%), " +
+    "linear-gradient(to bottom, transparent 0%, #000 22%, #000 72%, transparent 100%)"
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: "fixed", top: 0, right: 0, bottom: 0,
+        width: "min(46vw, 600px)", zIndex: 0, pointerEvents: "none",
+        backgroundImage: "url(/shankara-bg.jpg)",
+        backgroundSize: "cover",
+        backgroundPosition: "right 30%",
+        backgroundRepeat: "no-repeat",
+        opacity: 0.1,
+        filter: "sepia(0.5) contrast(0.92) brightness(1.04)",
+        WebkitMaskImage: mask, maskImage: mask,
+        WebkitMaskComposite: "source-in", maskComposite: "intersect",
+        animation: "drift 2.4s var(--ease-ink) both",
+      }}
+    />
+  )
+}
+
+// Typewriter: inscribe text character by character. Returns the visible slice
+// and whether it's done, so a cursor can blink at the writing point.
+function useTypewriter(fullText, speed = 55, startDelay = 350) {
+  const [n, setN] = useState(0)
+  useEffect(() => {
+    let i = 0, timer
+    const begin = setTimeout(function tick() {
+      i += 1
+      setN(i)
+      if (i < fullText.length) timer = setTimeout(tick, speed)
+    }, startDelay)
+    return () => { clearTimeout(begin); clearTimeout(timer) }
+  }, [fullText, speed, startDelay])
+  return { shown: fullText.slice(0, n), done: n >= fullText.length }
+}
+
+function Opening({ onAsk }) {
+  // Inscribe the whole stotra (both lines) as one continuous hand.
+  const full = STOTRA.join("\n")
+  const { shown, done } = useTypewriter(full, 52, 500)
+  const lines = shown.split("\n")
+
+  return (
+    <div style={{
+      position: "relative",
+      display: "flex", flexDirection: "column", justifyContent: "center",
+      paddingTop: "var(--space-lg)", paddingBottom: "var(--space-md)",
+    }}>
+      <ShankaraBackdrop />
+
+      <div style={{ position: "relative", zIndex: 1 }}>
+        {/* a small breathing flame */}
+        <span style={{
+          width: 11, height: 18,
+          borderRadius: "50% 50% 50% 50% / 64% 64% 36% 36%",
+          background: "linear-gradient(180deg,#D2611C 0%,#B23A1E 72%)",
+          display: "block", flexShrink: 0, marginBottom: "var(--space-lg)",
+          boxShadow: "0 0 26px rgba(178,58,30,.34)",
+          animation: "flamebreath 3.4s ease-in-out infinite",
+        }} />
+
+        {/* The stotra — inscribed character by character, manuscript hand. */}
+        <div style={{ marginBottom: "var(--space-lg)", userSelect: "none", minHeight: "4.4em" }}>
+          {lines.map((line, i) => (
+            <p key={i} className="deva" style={{
+              fontSize: "clamp(1.5rem, 3.8vw, 2.5rem)",
+              color: "var(--ink)", lineHeight: 1.55,
+              letterSpacing: ".004em",
+            }}>
+              {line}
+              {/* writing cursor on the last visible line until done */}
+              {!done && i === lines.length - 1 && (
+                <span style={{
+                  display: "inline-block", width: 2, height: "1em",
+                  background: "var(--flame)", verticalAlign: "text-bottom",
+                  marginLeft: 2, animation: "flamebreath 1s ease-in-out infinite",
+                }} />
+              )}
+            </p>
+          ))}
+          <p className="display" style={{
+            marginTop: "var(--space-sm)", fontStyle: "italic",
+            fontSize: "1.06rem", color: "var(--ink-faint)", maxWidth: 540,
+            lineHeight: 1.6,
+            opacity: done ? 1 : 0,
+            transition: "opacity .8s var(--ease-ink)",
+          }}>
+            Abode of śruti, smṛti and purāṇa, abode of compassion — I bow to
+            Bhagavatpāda Śaṅkara, who brings well-being to the world.
+          </p>
+        </div>
+
+        {/* Real questions — each a tap away. */}
+        <div style={{ animation: "drift 1.7s var(--ease-ink) both" }}>
+          <div className="mono" style={{
+            fontSize: ".66rem", letterSpacing: ".14em", textTransform: "uppercase",
+            color: "var(--ink-faint)", marginBottom: "var(--space-sm)",
+          }}>
+            you might ask
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, maxWidth: 640 }}>
+            {SEED_QUESTIONS.map((q, i) => {
+              const text = q.includes("—") ? q.split("—")[1].trim() : q
+              return (
+                <button
+                  key={i}
+                  onClick={() => onAsk(q.includes("—") ? q.split("—")[0].trim() + " " + text : q)}
+                  className="seed-chip"
+                  style={{
+                    border: "1px solid var(--rule-2)",
+                    background: "var(--vellum)",
+                    color: "var(--ink-soft)",
+                    borderRadius: 999,
+                    padding: "9px 16px",
+                    fontSize: ".92rem", fontFamily: "var(--font-body)",
+                    cursor: "pointer", lineHeight: 1.3,
+                    transition: "all .2s var(--ease-ink)",
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = "var(--flame)"
+                    e.currentTarget.style.color = "var(--flame-2)"
+                    e.currentTarget.style.background = "var(--paper-3)"
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = "var(--rule-2)"
+                    e.currentTarget.style.color = "var(--ink-soft)"
+                    e.currentTarget.style.background = "var(--vellum)"
+                  }}
+                >
+                  {q.includes("—")
+                    ? <><span className="deva" style={{ fontSize: "1.05em" }}>{q.split("—")[0].trim()}</span> <span style={{ color: "var(--ink-faint)" }}>· {text}</span></>
+                    : q}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Exchange ─────────────────────────────────────────────────────────────────
 function Exchange({ ex }) {
   return (
-    <article style={{ marginBottom: 40 }}>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 26 }}>
-        <p style={{
-          background: "var(--surface)",
-          border: "1px solid var(--border)",
-          borderRadius: "14px 14px 3px 14px",
-          padding: "13px 19px", maxWidth: "72%",
-          fontSize: 16.5, color: "var(--text)", lineHeight: 1.6,
-          boxShadow: "0 2px 10px rgba(43,32,24,0.05)",
-        }}>{ex.question}</p>
+    <article style={{ marginBottom: "var(--space-2xl)" }}>
+      {/* The seeker's question — an inscription, not a chat bubble.
+          Marginal label + the question in display serif, left-aligned,
+          underlined by a hairline that draws itself in. */}
+      <div style={{ marginBottom: "var(--space-lg)" }}>
+        <div className="mono" style={{
+          fontSize: ".68rem", letterSpacing: ".14em", textTransform: "uppercase",
+          color: "var(--ink-faint)", marginBottom: "var(--space-2xs)",
+        }}>
+          the seeker asks
+        </div>
+        <p className="display" style={{
+          fontSize: "1.46rem", lineHeight: 1.4, color: "var(--ink)",
+          fontWeight: 400, letterSpacing: "-.005em",
+        }}>
+          {ex.question}
+        </p>
+        <div style={{
+          height: 2, marginTop: "var(--space-sm)", width: "100%",
+          background: "linear-gradient(90deg, var(--flame) 0%, var(--flame) 36px, var(--rule) 36px, var(--rule) 100%)",
+          transformOrigin: "left",
+          animation: "hairline .7s var(--ease-ink) both",
+        }} />
       </div>
 
       {ex.rateLimited ? (
         <div style={{
-          background: "var(--surface)", border: "1px solid var(--border2)",
-          borderRadius: 10, padding: "24px 28px",
-          borderLeft: "3px solid var(--saffron)",
+          background: "var(--vellum)", border: "1px solid var(--rule-2)",
+          borderRadius: 4, padding: "var(--space-md) var(--space-lg)",
+          borderLeft: "3px solid var(--flame)",
         }}>
-          <p style={{ fontSize: 17, color: "var(--text2)", lineHeight: 1.75, marginBottom: 12 }}>
+          <p style={{ fontSize: 16.5, color: "var(--ink-soft)", lineHeight: 1.75, marginBottom: 12 }}>
             {ex.rateLimited.message}
           </p>
           {ex.rateLimited.reset_at && (
-            <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 8 }}>
-              Resets at {new Date(ex.rateLimited.reset_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            <p className="mono" style={{ fontSize: 12, color: "var(--muted)", marginBottom: 8 }}>
+              resets at {new Date(ex.rateLimited.reset_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </p>
           )}
           <a href="https://github.com/SujayKulkarni-2211/SankaRAGamana"
             target="_blank" rel="noreferrer"
-            style={{ fontSize: 13, color: "var(--saffron)", textDecoration: "none" }}>
-            View source on GitHub →
+            style={{ fontSize: 13, color: "var(--flame)", textDecoration: "none" }}>
+            view source on GitHub →
           </a>
         </div>
       ) : (
@@ -189,6 +377,10 @@ export default function Chat({ user, displayLang }) {
   const [exchanges,   setExchanges]   = useState([])
   const [streaming,   setStreaming]   = useState(false)
   const [phIdx,       setPhIdx]       = useState(0)
+  const [focused,     setFocused]     = useState(false)
+  // true when the page is scrolled to (or near) the bottom — used to dissolve
+  // the input band so the painting shows through near the footer.
+  const [atBottom,    setAtBottom]    = useState(false)
   // Show modal on entry for anonymous users
   const [showSignIn, setShowSignIn] = useState(!user)
   useEffect(() => { if (user) setShowSignIn(false) }, [user])
@@ -245,9 +437,28 @@ export default function Chat({ user, displayLang }) {
     return () => clearInterval(t)
   }, [])
 
-  // Auto-scroll
+  // Auto-scroll — the scroll container is now an ancestor, so walk up to the
+  // nearest scrollable element and pin it to the bottom.
   useEffect(() => {
-    if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight
+    let el = feedRef.current?.parentElement
+    while (el && el.scrollHeight <= el.clientHeight) el = el.parentElement
+    if (el) el.scrollTop = el.scrollHeight
+  }, [exchanges])
+
+  // Watch the scroll container so the input band can dissolve near the footer.
+  useEffect(() => {
+    let el = feedRef.current?.parentElement
+    while (el && getComputedStyle(el).overflowY !== "auto" && el !== document.body) {
+      el = el.parentElement
+    }
+    if (!el) return
+    const onScroll = () => {
+      const remaining = el.scrollHeight - el.scrollTop - el.clientHeight
+      setAtBottom(remaining < 120)  // within 120px of the bottom (footer area)
+    }
+    onScroll()
+    el.addEventListener("scroll", onScroll, { passive: true })
+    return () => el.removeEventListener("scroll", onScroll)
   }, [exchanges])
 
   function handleInput(e) {
@@ -256,8 +467,8 @@ export default function Chat({ user, displayLang }) {
     e.target.style.height = Math.min(e.target.scrollHeight, 180) + "px"
   }
 
-  const submit = useCallback(async () => {
-    const q = input.trim()
+  const submit = useCallback(async (explicit) => {
+    const q = (typeof explicit === "string" ? explicit : input).trim()
     if (!q || streaming) return
 
     // Anonymous users: one free question after dismissing modal, then block
@@ -424,6 +635,12 @@ export default function Chat({ user, displayLang }) {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit() }
   }
 
+  // A seed-question chip: show it in the input, then ask.
+  function askSeed(q) {
+    setInput(q)
+    submit(q)
+  }
+
   return (
     <>
       {showSignIn && !user && (
@@ -432,58 +649,43 @@ export default function Chat({ user, displayLang }) {
 
       <div style={{
         display: "flex", flexDirection: "column",
-        height: "calc(100vh - 54px)", background: "var(--bg)",
+        minHeight: "100%", background: "var(--bg)",
       }}>
-        <div ref={feedRef} style={{ flex: 1, overflowY: "auto", padding: "0 24px" }}>
-          <div style={{ maxWidth: 680, margin: "0 auto", paddingTop: 32, paddingBottom: 24 }}>
+        <div ref={feedRef} style={{ flex: 1, padding: "0 var(--space-md)" }}>
+          <div style={{ maxWidth: "var(--measure)", margin: "0 auto", paddingTop: "var(--space-xl)", paddingBottom: "var(--space-lg)" }}>
 
             {exchanges.length === 0 && !streaming && (
-              <div style={{
-                display: "flex", flexDirection: "column",
-                alignItems: "center", justifyContent: "center",
-                height: "calc(100vh - 280px)",
-                textAlign: "center", userSelect: "none",
-                animation: "inkrise 0.9s ease-out",
-              }}>
-                {/* the flame */}
-                <span style={{
-                  width: 10, height: 16,
-                  borderRadius: "50% 50% 50% 50% / 65% 65% 35% 35%",
-                  background: "linear-gradient(180deg, #E0691B 0%, #C0451B 70%)",
-                  display: "block", marginBottom: 36,
-                  boxShadow: "0 0 24px rgba(192,69,27,0.35)",
-                  animation: "flamebreath 3.2s ease-in-out infinite",
-                }} />
-                <p className="deva" style={{
-                  fontSize: 54, color: "var(--text)", lineHeight: 1.35,
-                  letterSpacing: "0.01em", fontStyle: "normal",
-                  marginBottom: 18,
-                }}>
-                  तत्त्वमसि
-                </p>
-                <p style={{
-                  fontSize: 16, color: "var(--text2)",
-                  fontStyle: "italic", letterSpacing: "0.02em",
-                  maxWidth: 340, lineHeight: 1.7,
-                }}>
-                  That thou art. Bring your question to Śaṅkara's presence.
-                </p>
-              </div>
+              <Opening onAsk={askSeed} />
             )}
 
             {exchanges.map(ex => <Exchange key={ex.id} ex={ex} />)}
           </div>
         </div>
 
-        {/* Input */}
+        {/* Input — a single writing surface, pinned to the bottom of the view.
+            The band is solid while reading/typing, but dissolves to transparent
+            once scrolled to the footer so the painting shows through there. */}
         <div style={{
-          borderTop: "1px solid var(--border)",
-          background: "var(--header)",
-          padding: "18px 24px 22px",
+          position: "sticky", bottom: 0, zIndex: 5,
+          borderTop: atBottom ? "1px solid transparent" : "1px solid var(--rule)",
+          background: atBottom ? "transparent" : "var(--paper-2)",
+          padding: "var(--space-md) var(--space-md) var(--space-lg)",
+          transition: "background .35s var(--ease-ink), border-color .35s",
         }}>
           <form
             onSubmit={e => { e.preventDefault(); submit() }}
-            style={{ maxWidth: 680, margin: "0 auto", display: "flex", gap: 12, alignItems: "flex-end" }}
+            style={{
+              maxWidth: "var(--measure)", margin: "0 auto",
+              display: "flex", gap: 0, alignItems: "stretch",
+              background: "var(--vellum)",
+              border: "1px solid var(--rule-2)",
+              borderRadius: 14,
+              boxShadow: focused ? "0 0 0 3px rgba(200,67,28,.08), 0 4px 18px rgba(32,36,46,.06)"
+                                  : "0 1px 4px rgba(32,36,46,.05)",
+              transition: "box-shadow .25s var(--ease-ink), border-color .25s",
+              borderColor: focused ? "var(--flame)" : "var(--rule-2)",
+              overflow: "hidden",
+            }}
           >
             <textarea
               ref={textareaRef}
@@ -493,45 +695,49 @@ export default function Chat({ user, displayLang }) {
               rows={1}
               placeholder={PLACEHOLDERS[phIdx]}
               disabled={streaming}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
               style={{
-                flex: 1, background: "var(--surface)",
-                border: "1px solid var(--border2)",
-                borderRadius: 12, padding: "14px 20px",
-                fontSize: 17, fontFamily: "var(--font-body)",
-                color: "var(--text)", resize: "none", outline: "none",
+                flex: 1, background: "transparent", border: "none",
+                padding: "15px 20px", fontSize: 17, fontFamily: "var(--font-body)",
+                color: "var(--ink)", resize: "none", outline: "none",
                 lineHeight: 1.6, minHeight: 54, maxHeight: 180, overflowY: "auto",
-                boxShadow: "0 1px 3px rgba(43,32,24,0.05)",
-                transition: "border-color .25s, box-shadow .25s",
                 opacity: streaming ? 0.6 : 1,
-              }}
-              onFocus={e => {
-                e.target.style.borderColor = "var(--saffron)"
-                e.target.style.boxShadow = "0 0 0 3px rgba(192,69,27,.07)"
-              }}
-              onBlur={e => {
-                e.target.style.borderColor = "var(--border2)"
-                e.target.style.boxShadow = "0 1px 3px rgba(43,32,24,0.05)"
               }}
             />
             <button
               type="submit"
               disabled={streaming || !input.trim()}
+              aria-label="Ask"
               style={{
-                background: "var(--saffron)", border: "none", borderRadius: 11,
-                padding: "14px 26px", fontSize: 16, fontWeight: 500,
-                fontFamily: "var(--font-body)", letterSpacing: "0.03em",
-                color: "#FBF6EE", flexShrink: 0, minWidth: 76,
-                cursor: (streaming || !input.trim()) ? "default" : "pointer",
-                opacity: (streaming || !input.trim()) ? 0.35 : 1,
-                boxShadow: (streaming || !input.trim()) ? "none" : "0 2px 8px rgba(192,69,27,0.22)",
-                transition: "opacity .2s, background .2s, box-shadow .2s",
+                background: (streaming || !input.trim()) ? "transparent" : "var(--flame)",
+                border: "none", borderLeft: "1px solid var(--rule-2)",
+                padding: "0 22px", fontSize: 15, fontWeight: 500,
+                fontFamily: "var(--font-mono)", letterSpacing: ".06em",
+                textTransform: "lowercase",
+                color: (streaming || !input.trim()) ? "var(--ink-faint)" : "var(--vellum)",
+                flexShrink: 0, cursor: (streaming || !input.trim()) ? "default" : "pointer",
+                transition: "background .2s, color .2s",
+                display: "flex", alignItems: "center", gap: 8,
               }}
-              onMouseEnter={e => { if (!streaming && input.trim()) e.currentTarget.style.background = "var(--saffron2)" }}
-              onMouseLeave={e => { e.currentTarget.style.background = "var(--saffron)" }}
+              onMouseEnter={e => { if (!streaming && input.trim()) e.currentTarget.style.background = "var(--flame-2)" }}
+              onMouseLeave={e => { if (!streaming && input.trim()) e.currentTarget.style.background = "var(--flame)" }}
             >
-              {streaming ? "…" : (ASK_LABEL[lang] || "Ask")}
+              {streaming
+                ? <span style={{
+                    width: 8, height: 10, borderRadius: "50% 50% 50% 50% / 62% 62% 38% 38%",
+                    background: "var(--flame)", animation: "flamebreath 1.4s ease-in-out infinite",
+                  }} />
+                : (ASK_LABEL[lang] || "ask")}
             </button>
           </form>
+          <p className="mono" style={{
+            maxWidth: "var(--measure)", margin: "var(--space-xs) auto 0",
+            fontSize: ".64rem", letterSpacing: ".06em", color: "var(--ink-faint)",
+            opacity: .7, textAlign: "right", paddingRight: 4,
+          }}>
+            ↵ to ask · ⇧↵ for a new line
+          </p>
         </div>
 
         <Footer />

@@ -3,42 +3,80 @@
 @tailwind utilities;
 
 /*
-  Temple at dawn. Warm stone, lamp-light, one flame.
-  Depth comes from layered warm light — not from going dark or brown.
-  Same variable NAMES as before so component files need no edits.
+  SankaRĀGamana — design system.
+
+  Not a chatbot. A manuscript that reveals its layers. The visual language
+  mirrors the system's thinking: a Sanskrit spine, an explanatory hand in the
+  margin, and the seeker reading by lamplight.
+
+  Palette — temple at dusk, NOT parchment-beige:
+    warm unbleached paper ground · deep ink-indigo text (never brown/black) ·
+    one sindoor/vermilion flame · brass-turmeric secondary · true ink for contrast.
 */
 :root {
-  /* Grounds — warm morning light on temple stone, layered for depth */
-  --bg:       #F4EDE2;   /* the room — warm stone, not parchment-flat */
-  --bg2:      #EDE3D4;   /* recessed surfaces — slightly deeper */
-  --surface:  #FBF6EE;   /* raised surfaces — where light falls (cards, bubbles) */
+  /* ── Grounds: an illuminated manuscript at dusk.
+       Deep, warm, sophisticated — aged ivory over a breath of rose-clay,
+       NOT flat beige. Layered toward true vellum where light falls. ── */
+  --paper:     #E8DCC8;   /* the page — aged ivory with warmth */
+  --paper-2:   #DECFB6;   /* recessed (input bar, footer) */
+  --paper-3:   #F1E9D9;   /* raised (cards) */
+  --vellum:    #FAF4E8;   /* highest surface */
 
-  /* Lines — like incised stone, soft not harsh */
-  --border:   #DDD0BC;
-  --border2:  #C9B89E;
+  /* legacy aliases (components still reference these names) */
+  --bg:        var(--paper);
+  --bg2:       var(--paper-2);
+  --surface:   var(--paper-3);
+  --header:    #E4D7C0;
 
-  /* Ink — manuscript, warm black-brown, never pure black */
-  --text:     #2B2018;   /* primary ink */
-  --text2:    #5C4A38;   /* secondary — aged ink */
-  --muted:    #8F7B62;   /* margin notes, captions */
+  /* ── Ink: deep walnut-aubergine. Warm, near-black, alive — never grey. ── */
+  --ink:       #2A1E1B;   /* primary text */
+  --ink-soft:  #5A4438;   /* secondary */
+  --ink-faint: #8C7559;   /* captions, marginalia */
+  --text:      var(--ink);
+  --text2:     var(--ink-soft);
+  --muted:     var(--ink-faint);
 
-  /* The flame — vermilion, used sparingly. This is the single accent. */
-  --saffron:  #C0451B;   /* lamp flame / kumkum */
-  --saffron2: #9E3514;   /* deeper, for hover/press */
-  --gold:     #A67C1A;   /* brass — secondary warm accent */
+  /* ── Lines: incised, soft ── */
+  --rule:      #D2C2A4;
+  --rule-2:    #BBA37E;
+  --border:    var(--rule);
+  --border2:   var(--rule-2);
 
-  --header:   #F0E7D8;   /* header band — slightly distinct from room */
+  /* ── The flame: deep kumkum-sindoor. The primary accent. ── */
+  --flame:     #B23A1E;
+  --flame-2:   #8E2A12;   /* pressed/deep */
+  --saffron:   var(--flame);
+  --saffron2:  var(--flame-2);
 
-  /* Spacing rhythm — 8px base grid (Linear lesson) */
-  --space-1: 8px;
-  --space-2: 16px;
-  --space-3: 24px;
-  --space-4: 40px;
-  --space-5: 64px;
+  /* ── Gold leaf: the illuminated-manuscript gilding ── */
+  --brass:     #9C7A1E;
+  --gold-leaf: #BE9A3A;
+  --gold:      var(--brass);
 
-  /* Type families */
-  --font-body: 'Spectral', Georgia, 'Times New Roman', serif;
-  --font-deva: 'Tiro Devanagari Sanskrit', 'Noto Sans Devanagari', serif;
+  /* ── Deep maroon: the cool-warm depth (Sanskrit-path marks, shadows) ── */
+  --maroon:    #6E2A2A;
+  --indigo:    var(--maroon);
+
+  /* ── Type families ── */
+  --font-display: 'Fraunces', Georgia, serif;          /* headings, the logo-feel */
+  --font-body:    'Spectral', Georgia, serif;          /* reading text */
+  --font-mono:    'Spline Sans Mono', ui-monospace, monospace; /* technical labels */
+  --font-deva:    'Tiro Devanagari Sanskrit', 'Noto Sans Devanagari', serif;
+
+  /* ── Spacing rhythm: a deliberate nested scale ── */
+  --space-2xs: 4px;
+  --space-xs:  8px;
+  --space-sm:  13px;
+  --space-md:  21px;
+  --space-lg:  34px;
+  --space-xl:  55px;
+  --space-2xl: 89px;   /* fibonacci-ish — organic, not mechanical 8/16/24 */
+
+  /* ── Reading column ── */
+  --measure:   680px;
+
+  /* ── Motion ── */
+  --ease-ink:  cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -48,45 +86,64 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
 }
 
 body, #root {
-  background: var(--bg);
-  color: var(--text);
+  background: var(--paper);
+  color: var(--ink);
   min-height: 100vh;
   font-family: var(--font-body);
-  line-height: 1.72;
-  /* faint warm vignette — like lamplight pooling, gives the room depth */
+  line-height: 1.7;
+  /* Illuminated-manuscript depth: a warm gilt glow above, a deep clay pool
+     below, and a barely-there fibrous paper grain over everything. */
   background-image:
-    radial-gradient(120% 80% at 50% -10%, #FBF5EB 0%, transparent 55%),
-    radial-gradient(100% 60% at 50% 110%, #EBE0CF 0%, transparent 50%);
+    radial-gradient(135% 95% at 50% -18%, #F6EEDD 0%, transparent 50%),
+    radial-gradient(110% 60% at 50% 118%, #D6C3A2 0%, transparent 46%),
+    radial-gradient(circle at 18% 30%, rgba(110,42,42,0.04) 0%, transparent 22%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
   background-attachment: fixed;
 }
 
-/* Devanagari — manuscript hand, always large and breathing */
+/* Devanagari — the manuscript hand. ALWAYS large, ALWAYS this size. */
 .deva, [lang="sa"], [lang="hi"] {
   font-family: var(--font-deva);
-  font-size: 1.18em;
-  line-height: 1.95;
+  font-style: normal !important;
 }
+
+/* Display serif with optical sizing — used for headings & the logo */
+.display { font-family: var(--font-display); font-optical-sizing: auto; }
+.mono    { font-family: var(--font-mono); }
 
 /* Scrollbar — a thin line of brass */
-::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar { width: 7px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: var(--rule-2); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
-/* Selection — camphor flame */
-::selection { background: rgba(192, 69, 27, 0.16); color: var(--text); }
+/* Selection — sindoor */
+::selection { background: rgba(200, 67, 28, 0.16); color: var(--ink); }
 
-/* Ink settling in — the streaming response fades in like ink on paper */
-@keyframes inkrise {
-  from { opacity: 0; transform: translateY(3px); }
-  to   { opacity: 1; transform: translateY(0); }
+/* ── Mobile ── */
+@media (max-width: 640px) {
+  html { font-size: 16.5px; }
+  :root { --space-2xl: 56px; --space-xl: 40px; }
 }
 
-/* A slow, warm pulse for the thinking state — a flame breathing, not a spinner */
+/* ── Motion keyframes ── */
+@keyframes inkrise {
+  from { opacity: 0; transform: translateY(6px); filter: blur(1.5px); }
+  to   { opacity: 1; transform: translateY(0);   filter: blur(0); }
+}
 @keyframes flamebreath {
-  0%, 100% { opacity: 0.3; transform: scale(0.9); }
-  50%      { opacity: 1;   transform: scale(1); }
+  0%, 100% { opacity: 0.32; transform: scale(0.88); }
+  50%      { opacity: 1;    transform: scale(1); }
+}
+@keyframes hairline {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+@keyframes drift {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }

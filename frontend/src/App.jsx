@@ -178,21 +178,27 @@ function Header({ user, onNewChat, displayLang, onLangChange }) {
       padding: "0 30px",
       backdropFilter: "blur(6px)",
     }}>
-      {/* Logo — RĀG carries the flame, distinct but quiet */}
-      <Link to="/" style={{
-        fontFamily: "var(--font-body)",
-        fontSize: 20, fontWeight: 500,
-        color: "var(--text)", textDecoration: "none",
-        letterSpacing: "0.005em",
-        display: "inline-flex", alignItems: "baseline",
+      {/* Logo — display serif. RĀG carries the flame; a small breathing
+          ember sits before it like a lit lamp. */}
+      <Link to="/" className="display" style={{
+        fontSize: 22, fontWeight: 500,
+        color: "var(--ink)", textDecoration: "none",
+        letterSpacing: "-.01em",
+        display: "inline-flex", alignItems: "center", gap: 10,
       }}>
-        <span>Sanka</span>
         <span style={{
-          color: "var(--saffron)",
-          fontWeight: 600,
-          letterSpacing: "0.01em",
-        }}>RĀG</span>
-        <span>amana</span>
+          width: 7, height: 11,
+          borderRadius: "50% 50% 50% 50% / 62% 62% 38% 38%",
+          background: "linear-gradient(180deg,#E0691B,#C8431C)",
+          display: "inline-block", flexShrink: 0,
+          boxShadow: "0 0 8px rgba(200,67,28,.4)",
+          animation: "flamebreath 3.4s ease-in-out infinite",
+        }} />
+        <span style={{ display: "inline-flex", alignItems: "baseline" }}>
+          <span>Sanka</span>
+          <span style={{ color: "var(--flame)", fontWeight: 600 }}>RĀG</span>
+          <span>amana</span>
+        </span>
       </Link>
 
       {/* Nav */}
@@ -295,9 +301,9 @@ function AppInner() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+    <div style={{ height: "100dvh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <Header user={user} onNewChat={newChat} displayLang={displayLang} onLangChange={setDisplayLang} />
-      <div style={{ flex: 1 }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
         <Routes>
           <Route path="/"                    element={<Chat key={`new-${chatKey}`} user={user} displayLang={displayLang} />} />
           <Route path="/darshana/:session_id" element={<Chat key={`darshana-${chatKey}`} user={user} displayLang={displayLang} />} />

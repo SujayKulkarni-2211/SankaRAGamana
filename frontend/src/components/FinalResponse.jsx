@@ -1,74 +1,84 @@
 import ReactMarkdown from "react-markdown"
 
 const DEVA_RE = /[ऀ-ॿ]/
-// A "verse line" heuristic: a line that is mostly Devanagari and ends in a
-// daṇḍa (। or ॥) — rendered as a centered verse, not flowing prose.
-const VERSE_LINE = /[।॥]\s*$/
 
-// Split mixed text into inline spans, wrapping Devanagari runs in the
-// manuscript Devanagari face so conjuncts render beautifully and large.
+// Is this line predominantly Devanagari? (a verse line, regardless of whether
+// it ends in a daṇḍa — fixes the "line 1 big, line 2 small" inconsistency)
+function isVerseLine(t) {
+  if (!t.trim()) return false
+  const deva = (t.match(/[ऀ-ॿ]/g) || []).length
+  const latin = (t.match(/[A-Za-z]/g) || []).length
+  return deva >= 4 && deva > latin
+}
+
+// Inline mixed text: wrap Devanagari runs in the manuscript face.
 function renderMixed(text) {
   if (!text) return null
   return text.split(/(\s+)/).map((part, i) =>
     DEVA_RE.test(part)
-      ? <span key={i} className="deva" style={{ fontStyle: "normal" }}>{part}</span>
+      ? <span key={i} className="deva">{part}</span>
       : part
   )
 }
 
-// A Sanskrit verse — centered, larger, set apart like a śloka on the page.
-function Verse({ children }) {
+// A śloka block — ALL lines rendered at one consistent size, centered, set
+// apart like verse on a manuscript page with a faint marginal rule.
+function Verse({ lines }) {
   return (
     <div style={{
-      textAlign: "center",
-      margin: "1.6em 0",
-      padding: "0.2em 0",
+      margin: "var(--space-md) 0",
+      paddingLeft: "var(--space-md)",
+      borderLeft: "2px solid var(--flame)",
     }}>
-      <span className="deva" style={{
-        fontSize: "1.42rem",
-        color: "var(--text)",
-        lineHeight: 2.05,
-        letterSpacing: "0.01em",
-      }}>
-        {children}
-      </span>
+      {lines.map((ln, i) => (
+        <div
+          key={i}
+          className="deva"
+          style={{
+            fontSize: "1.34rem",
+            lineHeight: 1.95,
+            color: "var(--ink)",
+            letterSpacing: "0.012em",
+          }}
+        >
+          {ln.trim()}
+        </div>
+      ))}
     </div>
   )
 }
 
 const MD = {
   p: ({ children }) => (
-    <p style={{ marginBottom: "1.25em", lineHeight: 1.92 }}>{children}</p>
+    <p style={{ marginBottom: "1.15em", lineHeight: 1.88 }}>{children}</p>
   ),
   blockquote: ({ children }) => (
     <blockquote style={{
-      borderLeft: "2px solid var(--saffron)",
+      borderLeft: "2px solid var(--brass)",
       paddingLeft: "1.3em",
-      margin: "1.4em 0",
-      color: "var(--text2)",
+      margin: "1.3em 0",
+      color: "var(--ink-soft)",
       fontStyle: "italic",
     }}>{children}</blockquote>
   ),
   strong: ({ children }) => (
-    <strong style={{ fontWeight: 600, color: "var(--text)" }}>{children}</strong>
+    <strong style={{ fontWeight: 600, color: "var(--ink)" }}>{children}</strong>
   ),
   em: ({ children }) => <em style={{ fontStyle: "italic" }}>{children}</em>,
   code: ({ children }) => (
-    <span className="deva" style={{ color: "var(--saffron2)", fontStyle: "normal" }}>
-      {children}
-    </span>
+    <span className="deva" style={{ color: "var(--flame-2)" }}>{children}</span>
   ),
 }
 
-// Render the completed response with verse/prose distinction.
-// Devanagari verse lines (ending in daṇḍa) become centered Verses;
-// everything else flows as manuscript prose via markdown.
+// Group consecutive verse-lines into one Verse block; everything else is prose.
 function renderCompleted(text) {
   const blocks = text.split("\n\n")
-  return blocks.map((block, bi) => {
+  const out = []
+
+  blocks.forEach((block, bi) => {
     const lines = block.split("\n")
-    const out = []
     let proseBuf = []
+    let verseBuf = []
 
     const flushProse = () => {
       if (proseBuf.length) {
@@ -80,75 +90,82 @@ function renderCompleted(text) {
         proseBuf = []
       }
     }
+    const flushVerse = () => {
+      if (verseBuf.length) {
+        out.push(<Verse key={`v-${bi}-${out.length}`} lines={verseBuf} />)
+        verseBuf = []
+      }
+    }
 
     for (const line of lines) {
-      const t = line.trim()
-      const devaCount = (t.match(/[ऀ-ॿ]/g) || []).length
-      const isVerse = t && VERSE_LINE.test(t) && devaCount > t.length * 0.4
-      if (isVerse) {
+      if (isVerseLine(line)) {
         flushProse()
-        out.push(<Verse key={`v-${bi}-${out.length}`}>{renderMixed(t)}</Verse>)
+        verseBuf.push(line)
       } else {
+        flushVerse()
         proseBuf.push(line)
       }
     }
+    flushVerse()
     flushProse()
-    return <div key={bi}>{out}</div>
   })
+
+  return out
 }
 
 export default function FinalResponse({ tokens, done }) {
   const text = tokens.join("")
 
-  // Thinking state — a single flame breathing, not three machine dots.
+  // Thinking — a single flame breathing.
   if (!text && !done) {
     return (
-      <div style={{
-        display: "flex", alignItems: "center", gap: 12,
-        padding: "20px 0 6px",
-      }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 13, padding: "22px 0 6px" }}>
         <span style={{
-          width: 9, height: 11, borderRadius: "50% 50% 50% 50% / 60% 60% 40% 40%",
-          background: "var(--saffron)",
+          width: 9, height: 12,
+          borderRadius: "50% 50% 50% 50% / 62% 62% 38% 38%",
+          background: "linear-gradient(180deg,#E0691B,#C8431C)",
           display: "inline-block",
           animation: "flamebreath 1.8s ease-in-out infinite",
-          boxShadow: "0 0 10px rgba(192,69,27,0.4)",
+          boxShadow: "0 0 11px rgba(200,67,28,.42)",
         }} />
-        <span style={{ fontSize: "0.92rem", color: "var(--muted)", fontStyle: "italic", letterSpacing: "0.02em" }}>
-          consulting the texts…
+        <span className="mono" style={{
+          fontSize: ".74rem", letterSpacing: ".08em", textTransform: "uppercase",
+          color: "var(--ink-faint)",
+        }}>
+          consulting the texts
         </span>
       </div>
     )
   }
 
-  const baseStyle = {
+  const base = {
     fontSize: "1.08rem",
-    lineHeight: 1.92,
-    color: "var(--text)",
+    lineHeight: 1.88,
+    color: "var(--ink)",
     wordBreak: "break-word",
     fontFamily: "var(--font-body)",
   }
 
-  // Streaming — plain text settling in with a soft cursor, ink-on-paper.
+  // Streaming — ink settling, plain with a flame cursor.
   if (!done) {
     return (
-      <div style={{ ...baseStyle, animation: "inkrise 0.5s ease-out" }}>
-        <p style={{ marginBottom: 0, lineHeight: 1.92, whiteSpace: "pre-wrap" }}>
+      <div style={{ ...base, animation: "inkrise .5s var(--ease-ink)" }}>
+        <p style={{ marginBottom: 0, lineHeight: 1.88, whiteSpace: "pre-wrap" }}>
           {renderMixed(text)}
           <span style={{
             display: "inline-block", width: 2, height: "1.05em",
-            background: "var(--saffron)", verticalAlign: "text-bottom",
-            animation: "flamebreath 1.4s ease-in-out infinite", marginLeft: 3,
-            borderRadius: 1,
+            background: "var(--flame)", verticalAlign: "text-bottom",
+            animation: "flamebreath 1.4s ease-in-out infinite",
+            marginLeft: 3, borderRadius: 1,
           }} />
         </p>
       </div>
     )
   }
 
-  // Completed — verse/prose distinction, settled in.
+  // Settled — verse/prose distinction, consistent Devanagari sizing.
   return (
-    <div style={{ ...baseStyle, animation: "inkrise 0.6s ease-out" }}>
+    <div style={{ ...base, animation: "inkrise .6s var(--ease-ink)" }}>
       {renderCompleted(text)}
     </div>
   )
