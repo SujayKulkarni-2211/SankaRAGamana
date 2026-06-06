@@ -194,10 +194,29 @@ def _fmt_imprints(imprints: list) -> str:
 
 
 def _fmt_profile(profile: dict) -> str:
+    """Terse structured profile — kept short on purpose; this feeds several
+    prompts, so no prose here. Durable memory is added once, lean, in synthesis
+    via _fmt_seeker_memory()."""
     return (
         f"level={profile.get('level')} intent={profile.get('intent')} "
         f"tone={profile.get('emotional_tone')} language={profile.get('language')}"
     )
+
+
+def _fmt_seeker_memory(profile: dict) -> str:
+    """One compact line of durable memory for returning seekers, or "". Capped
+    so it can never bloat the prompt. Used ONLY by synthesis, where it shapes
+    the actual teaching — not by the audit."""
+    notes = (profile.get("_seeker_notes") or "").strip()
+    themes = profile.get("_recurring_themes") or []
+    if not notes and not themes:
+        return ""
+    parts = []
+    if notes:
+        parts.append(notes[:220])                 # hard cap — 1 short paragraph
+    if themes:
+        parts.append("Recurring: " + ", ".join(themes[:5]))
+    return "Returning seeker — " + " ".join(parts)
 
 
 def _fmt_chunks_full(chunks: list) -> str:
@@ -456,12 +475,20 @@ def stream_synthesis(
         agent_b_response=agent_b_response or "(no explanation-path answer was produced)",
         chunks_full=chunks_full,
     )
+    # Give the composer the seeker context so the teaching meets THIS person.
+    # Durable memory (returning seekers) is added as ONE capped line, only when
+    # present, so it never overloads the prompt.
+    memory_line = _fmt_seeker_memory(seeker_profile)
+    user_msg = f"Seeker — {_fmt_profile(seeker_profile)}\n"
+    if memory_line:
+        user_msg += memory_line + "\n"
+    user_msg += f"\nCompose the full teaching for the seeker's question: {query}"
     try:
         return groq_chat(
             model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": system},
-                {"role": "user", "content": f"Compose the full teaching for the seeker's question: {query}"},
+                {"role": "user", "content": user_msg},
             ],
             temperature=0.3,
             max_tokens=2600,

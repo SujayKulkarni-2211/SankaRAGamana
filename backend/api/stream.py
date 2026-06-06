@@ -25,6 +25,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from backend.rag.seeker_profiler import profile_seeker
+from backend.rag import seeker_memory
 from backend.rag.translator import translate_query_to_english
 from backend.rag.agent_a import stream_agent_a, run_agent_a, AgentResult as AResult
 from backend.rag.agent_b import stream_agent_b, run_agent_b, AgentResult as BResult
@@ -96,6 +97,18 @@ async def generate_stream(question: str, user_id: Optional[str], client_ip: str,
 
     # Step 1: Profile — pass history so level/intent reflects ongoing conversation
     seeker_profile = await profile_seeker(question, history=history)
+
+    # Persistent seeker memory: for logged-in seekers, blend the durable profile
+    # (distilled offline from past visits) into this live read, and — if it has
+    # gone stale — fire the "sleep consolidation" in the background so it never
+    # blocks this answer. Anonymous seekers have no durable memory.
+    if user_id:
+        stored = await asyncio.to_thread(seeker_memory.load_profile, user_id)
+        total_exchanges = await asyncio.to_thread(seeker_memory._count_exchanges, user_id)
+        seeker_profile = seeker_memory.blend_into(seeker_profile, stored, total_exchanges)
+        if seeker_memory.is_stale(stored, total_exchanges):
+            asyncio.create_task(asyncio.to_thread(seeker_memory.consolidate, user_id))
+
     yield sse("profile", {
         "level": seeker_profile.get("level"),
         "intent": seeker_profile.get("intent"),
