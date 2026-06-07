@@ -5,7 +5,9 @@ import FinalResponse from "../components/FinalResponse"
 import Feedback from "../components/Feedback"
 import Footer from "../components/Footer"
 import { signInWithGoogle } from "../lib/supabase"
-import shankaraBg from "../assets-shankara.js"   // base64 data-URI (no binary file → no LFS)
+// NOTE: the base64 fallback (assets-shankara.js, ~1MB) is imported LAZILY inside
+// ShankaraBackdrop only when the static /shankara-bg.jpg is unavailable, so it
+// never bloats the main bundle.
 
 const PLACEHOLDERS = [
   "Ask what you have always wondered…",
@@ -160,12 +162,31 @@ const SEED_QUESTIONS = [
 // painting, anchored to the far right and dissolved into the paper on every
 // edge so it reads as a watermark in the margin, never a hard-edged photo that
 // collides with the text.
+//
+// Source strategy: prefer the crisp static file (/shankara-bg.jpg, generated at
+// Docker build time → served standalone, browser-cached, no JS bloat). If that
+// file is somehow unavailable, fall back to the inlined base64 (shankaraBg) so
+// the watermark never simply vanishes.
+const STATIC_BG = "/shankara-bg.jpg"
+
 function ShankaraBackdrop() {
   // Two stacked masks: a left→right fade (so it never reaches the text column)
   // and a vertical fade (so the top/bottom edges melt into the page).
   const mask =
     "linear-gradient(to left, #000 0%, #000 28%, transparent 82%), " +
     "linear-gradient(to bottom, transparent 0%, #000 22%, #000 72%, transparent 100%)"
+
+  // Start on the static file; if it 404s, lazily pull in the base64 fallback
+  // (dynamic import keeps that ~1MB out of the main bundle).
+  const [src, setSrc] = useState(STATIC_BG)
+  useEffect(() => {
+    const probe = new Image()
+    probe.onerror = () => {
+      import("../assets-shankara.js").then(m => setSrc(m.default)).catch(() => {})
+    }
+    probe.src = STATIC_BG
+  }, [])
+
   return (
     <div
       aria-hidden
@@ -173,7 +194,7 @@ function ShankaraBackdrop() {
       style={{
         position: "fixed", top: 0, right: 0, bottom: 0,
         width: "min(46vw, 600px)", zIndex: 0, pointerEvents: "none",
-        backgroundImage: `url(${shankaraBg})`,
+        backgroundImage: `url(${src})`,
         backgroundSize: "cover",
         backgroundPosition: "right 30%",
         backgroundRepeat: "no-repeat",

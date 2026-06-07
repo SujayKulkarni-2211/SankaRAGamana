@@ -17,6 +17,18 @@ COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ ./
 
+# Fetch the crisp Śaṅkara watermark at build time (the binary isn't committed to
+# git — HF rejects committed binaries). Raja Ravi Varma, public domain. Downscale
+# to a web-friendly 1100px so Vite bundles a sharp static /shankara-bg.jpg. If the
+# fetch ever fails, the app falls back to the inlined base64, so the build still
+# succeeds and the watermark still shows. (HF allows HTTPS during build.)
+RUN apt-get update && apt-get install -y --no-install-recommends curl imagemagick \
+ && ( curl -fsSL "https://upload.wikimedia.org/wikipedia/commons/e/e3/Raja_Ravi_Varma_-_Sankaracharya.jpg" -o /tmp/sk.jpg \
+      && convert /tmp/sk.jpg -resize 1100x -quality 88 -unsharp 0x0.4 public/shankara-bg.jpg \
+      && echo "shankara-bg.jpg generated" \
+    || echo "image fetch failed — app will use base64 fallback" ) \
+ && rm -rf /var/lib/apt/lists/* /tmp/sk.jpg
+
 # Supabase keys are build-time for Vite (import.meta.env.VITE_*). HF passes
 # these as build args (set them as Space "Variables", not Secrets — they are
 # the PUBLIC anon key + URL, safe to embed in the client bundle).
@@ -25,7 +37,7 @@ ARG VITE_SUPABASE_ANON_KEY
 ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
 ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 
-RUN npm run build          # -> /frontend/dist
+RUN npm run build          # -> /frontend/dist (includes public/shankara-bg.jpg)
 
 
 # ── Stage 2: the backend + model ─────────────────────────────────────────────

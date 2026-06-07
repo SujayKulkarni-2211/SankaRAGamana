@@ -6,6 +6,8 @@ export const supabase = createClient(
 )
 
 export async function signInWithGoogle() {
+  // By now the app has broken out of any iframe (see main.jsx), so
+  // window.location.origin is the real hf.space app URL and OAuth works.
   return supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
