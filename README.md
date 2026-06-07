@@ -140,7 +140,7 @@ It spans the **prakaraṇa-granthas** (Tattvabodha, Ātmabodha, Vivekacūḍāma
 | Generation | **Groq** — `llama-3.3-70b-versatile` (up to 3 keys, round-robin + failover) |
 | Frontend | **React + Vite + Tailwind**, react-router, react-markdown |
 | Auth & data | Supabase (Google sign-in, conversations, feedback, rate limits) |
-| Hosting | Render (free tier), kept warm by a cron ping to `/health` |
+| Hosting | Hugging Face Spaces (Docker, free tier), kept warm by a cron ping to `/health` |
 
 > **e5 prefix rule (non-negotiable):** documents are embedded with a `passage: ` prefix and queries with a `query: ` prefix. The retriever and ingestion both honour this.
 
@@ -190,7 +190,7 @@ sankaragamana/
 │   │   └── lib/supabase.js
 │   └── public/shankara-bg.jpg  # Raja Ravi Varma watermark (public domain)
 ├── corpus/chunks/              # 32 *_chunks.json (committed)
-├── render.yaml                 # Render deployment
+├── Dockerfile                  # single-image build for Hugging Face Spaces
 └── README.md
 ```
 
@@ -305,14 +305,14 @@ For a production-like run, `npm run build` — FastAPI will serve `frontend/dist
 
 ## Deployment
 
-Deployed on **Render** (see [`render.yaml`](render.yaml)):
+Deployed as a single Docker image on **Hugging Face Spaces** (see [`Dockerfile`](Dockerfile)):
 
-- **Build:** `pip install -r backend/requirements.txt` && `cd frontend && npm install && npm run build`
-- **Start:** `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
-- Set the env vars from step 3 in the Render dashboard (`sync: false` keys).
-- Keep the free instance warm with a cron ping (e.g. [cron-job.org](https://cron-job.org)) to `/health` every ~14 minutes.
+- **Build:** the `Dockerfile` builds the React frontend, installs the backend, and bakes the e5-large model into the image. Listens on port **7860** (HF requirement).
+- **Why HF:** the e5-large embedder needs ~2.2 GB RAM, which fits HF Spaces' free tier (16 GB) but not Render/Railway free (512 MB).
+- **Secrets** (backend runtime): `SUPABASE_URL`, `SUPABASE_KEY`, `GROQ_API_KEY` (`_2`, `_3`). **Variables** (build-time for Vite): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+- Keep the free Space warm with a cron ping (e.g. [cron-job.org](https://cron-job.org)) to `/health` every ~14 minutes.
 
-One platform, one repo, one URL — FastAPI serves both the API and the built SPA.
+One repo, one image, one URL — FastAPI serves both the API and the built SPA.
 
 ---
 
