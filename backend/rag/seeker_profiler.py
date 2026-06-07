@@ -138,7 +138,7 @@ async def profile_seeker(query: str, history: list = None) -> dict:
         if history_ctx:
             prompt = history_ctx + "\n\nCurrent query: " + query + "\n\n" + prompt
         response = groq_chat(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",  # light classification → cheaper pool
             messages=[
                 {"role": "user", "content": prompt},
             ],

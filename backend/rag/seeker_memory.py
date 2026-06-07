@@ -209,7 +209,7 @@ def consolidate(user_id: str) -> Optional[dict]:
 
         prompt = CONSOLIDATE_PROMPT.format(history=_format_history(rows))
         response = groq_chat(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",  # background distillation → cheaper pool
             messages=[{"role": "user", "content": prompt}],
             temperature=0.2,
             max_tokens=400,

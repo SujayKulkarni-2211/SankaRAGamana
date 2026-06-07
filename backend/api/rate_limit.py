@@ -41,6 +41,17 @@ GLOBAL_LIMITED_MESSAGE = (
     "The complete source code is on GitHub if you wish to run your own instance."
 )
 
+# Shown when the underlying free LLM provider (Groq / Llama) has exhausted its
+# daily token allowance — a limit of the free infrastructure, not of the corpus.
+LLM_EXHAUSTED_MESSAGE = (
+    "SankaRĀGamana runs entirely on free resources so it can stay free for every "
+    "seeker. Its language provider — Groq, serving the Llama model — has a daily "
+    "free-tier token allowance, and that allowance has been spent for today. "
+    "This is a limit of the free infrastructure, nothing more. The allowance "
+    "renews at midnight UTC (around 5:30 AM IST); please return then. "
+    "The full source is on GitHub if you wish to run your own instance with your own keys."
+)
+
 
 def _get_pool() -> psycopg2.pool.SimpleConnectionPool:
     global _pool

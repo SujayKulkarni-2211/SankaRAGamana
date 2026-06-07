@@ -97,12 +97,27 @@ async def generate_stream(question: str, user_id: Optional[str], client_ip: str,
         import traceback
         print(f"[stream] fatal: {type(e).__name__}: {e}")
         traceback.print_exc()
+        # If the failure is the free LLM provider's rate limit, say so plainly.
+        msg = str(e).lower()
+        if "rate_limit" in msg or "429" in msg or "tokens per day" in msg or "tpd" in msg:
+            from backend.api.rate_limit import LLM_EXHAUSTED_MESSAGE
+            yield sse("rate_limited", {"message": LLM_EXHAUSTED_MESSAGE, "reset_at": None})
+            return
         yield sse_json("final_response",
                        "The connection to Śaṅkara's texts faltered. Please try your question again.")
         yield sse("done", {"session_id": str(uuid.uuid4()), "error": str(e)})
 
 
 async def _generate_stream_inner(question: str, user_id: Optional[str], client_ip: str, history: list = None) -> AsyncIterator[str]:
+    # Pre-flight: if every Groq key has hit its daily token cap, the pipeline
+    # would only produce a broken/empty answer. Tell the seeker plainly that the
+    # FREE LLM provider's allowance is spent — a limit of the free infra, not us.
+    from backend.rag.groq_client import any_key_available
+    from backend.api.rate_limit import LLM_EXHAUSTED_MESSAGE
+    if not any_key_available():
+        yield sse("rate_limited", {"message": LLM_EXHAUSTED_MESSAGE, "reset_at": None})
+        return
+
     # Rate limit check — before any LLM calls
     allowed, limit_msg, reset_at = await check_rate_limits(user_id, client_ip)
     if not allowed:
