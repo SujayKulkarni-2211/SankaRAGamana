@@ -22,14 +22,17 @@ COPY frontend/ ./
 # to a web-friendly 1100px so Vite bundles a sharp static /shankara-bg.jpg. If the
 # fetch ever fails, the app falls back to the inlined base64, so the build still
 # succeeds and the watermark still shows. (HF allows HTTPS during build.)
+# Try to fetch the crisp original at build time; HF's build network may block
+# external hosts, so this is NON-FATAL — on failure the app serves the inlined
+# 1300px/q92 base64 fallback (assets-shankara.js), which is the same quality.
 RUN apt-get update && apt-get install -y --no-install-recommends curl imagemagick \
- && curl -fL --retry 4 --retry-delay 3 --connect-timeout 20 \
-      -A "Mozilla/5.0 (SankaRAGamana build)" \
-      "https://upload.wikimedia.org/wikipedia/commons/e/e3/Raja_Ravi_Varma_-_Sankaracharya.jpg" \
-      -o /tmp/sk.jpg \
- && convert /tmp/sk.jpg -resize 1300x -quality 92 -unsharp 0x0.5 public/shankara-bg.jpg \
- && echo "shankara-bg.jpg generated: $(identify -format '%wx%h %b' public/shankara-bg.jpg)" \
- && rm -rf /var/lib/apt/lists/* /tmp/sk.jpg
+ && ( curl -fL --retry 3 --connect-timeout 15 -A "Mozilla/5.0 (SankaRAGamana build)" \
+        "https://upload.wikimedia.org/wikipedia/commons/e/e3/Raja_Ravi_Varma_-_Sankaracharya.jpg" \
+        -o /tmp/sk.jpg \
+      && convert /tmp/sk.jpg -resize 1300x -quality 92 -unsharp 0x0.5 public/shankara-bg.jpg \
+      && echo "shankara-bg.jpg generated" \
+    || echo "build-time image fetch failed — using base64 fallback (same quality)" ) \
+ && rm -rf /var/lib/apt/lists/* /tmp/sk.jpg || true
 
 # Supabase keys are build-time for Vite (import.meta.env.VITE_*). HF passes
 # these as build args (set them as Space "Variables", not Secrets — they are
