@@ -68,8 +68,16 @@ async def check_rate_limits(
     id_type = "user" if user_id else "ip"
     limit = USER_LIMIT if user_id else ANON_LIMIT
 
-    pool = _get_pool()
-    conn = pool.getconn()
+    # Acquiring the DB connection must NEVER crash the request. The direct
+    # Postgres connection can fail in restricted hosts (e.g. IPv6-only direct
+    # endpoint); if so, fail OPEN — skip rate limiting rather than kill the
+    # stream. (The whole point of rate-limiting is moot if the app is down.)
+    try:
+        pool = _get_pool()
+        conn = pool.getconn()
+    except Exception as e:
+        print(f"[rate_limit] pool/connection unavailable, skipping limit: {e}")
+        return True, None, None
     try:
         conn.autocommit = False
         cur = conn.cursor()

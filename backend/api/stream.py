@@ -86,6 +86,23 @@ def chunk_preview(chunks: list) -> list:
 
 
 async def generate_stream(question: str, user_id: Optional[str], client_ip: str, history: list = None) -> AsyncIterator[str]:
+    # Top-level guard: if ANY step raises (DB pool can't connect, model fails to
+    # load, an agent throws), emit a clean error event and close the stream —
+    # never let the generator die silently, which the client sees as a dropped
+    # connection / HTTP2 protocol error.
+    try:
+        async for chunk in _generate_stream_inner(question, user_id, client_ip, history):
+            yield chunk
+    except Exception as e:
+        import traceback
+        print(f"[stream] fatal: {type(e).__name__}: {e}")
+        traceback.print_exc()
+        yield sse_json("final_response",
+                       "The connection to Śaṅkara's texts faltered. Please try your question again.")
+        yield sse("done", {"session_id": str(uuid.uuid4()), "error": str(e)})
+
+
+async def _generate_stream_inner(question: str, user_id: Optional[str], client_ip: str, history: list = None) -> AsyncIterator[str]:
     # Rate limit check — before any LLM calls
     allowed, limit_msg, reset_at = await check_rate_limits(user_id, client_ip)
     if not allowed:

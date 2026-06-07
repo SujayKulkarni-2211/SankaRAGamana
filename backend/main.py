@@ -30,6 +30,23 @@ app.include_router(conversation_router)
 app.include_router(translate_router)
 
 
+@app.on_event("startup")
+async def _warm_model():
+    # Load e5-large into RAM at startup (~20-30s) so the FIRST query doesn't
+    # hang while the 2.2GB model loads mid-stream — which read as a connection
+    # error / HTTP2 protocol error on the client. The model is already cached in
+    # the image (baked at build), so this is just the load-into-memory step.
+    import asyncio
+    def _load():
+        try:
+            Embedder.get()
+            print("[startup] e5-large loaded into memory")
+        except Exception as e:
+            print(f"[startup] model warm-up failed: {e}")
+    # run in a thread so it doesn't block the event loop / health checks
+    asyncio.get_event_loop().run_in_executor(None, _load)
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok", "model_loaded": Embedder.is_loaded()}
