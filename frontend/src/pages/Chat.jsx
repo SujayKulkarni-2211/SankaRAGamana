@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react"
-import { useParams, useNavigate, useLocation } from "react-router-dom"
+import { useParams, useLocation } from "react-router-dom"
 import ThinkingPanel from "../components/ThinkingPanel"
 import FinalResponse from "../components/FinalResponse"
 import Feedback from "../components/Feedback"
@@ -393,7 +393,6 @@ function Exchange({ ex }) {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function Chat({ user, displayLang }) {
   const { session_id } = useParams()
-  const navigate = useNavigate()
   const location = useLocation()
   const isDarshanaRoute = location.pathname.startsWith("/darshana/")
   const [input,       setInput]       = useState("")
@@ -411,6 +410,9 @@ export default function Chat({ user, displayLang }) {
   const [history,     setHistory]     = useState([])
   const textareaRef = useRef()
   const feedRef     = useRef()
+  // session_id we just created in this tab — the load effect skips re-fetching
+  // it (the streamed answer is already in memory).
+  const justCreatedRef = useRef(null)
   const lang        = detectLang(input)
 
   // Clear state when navigating to /
@@ -425,6 +427,12 @@ export default function Chat({ user, displayLang }) {
   // Load saved conversation only when actually on /darshana/:session_id
   useEffect(() => {
     if (!session_id || !isDarshanaRoute) return
+    // We just created this session in-tab — the answer is already on screen.
+    // Skip the re-fetch (it can race the save and blank the view).
+    if (justCreatedRef.current === session_id) {
+      justCreatedRef.current = null
+      return
+    }
     fetch(`/api/conversation/${session_id}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
@@ -584,7 +592,11 @@ export default function Chat({ user, displayLang }) {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ ...convData, seeker_profile: p.seeker_profile }),
             })
-            navigate(`/darshana/${p.session_id}`, { replace: false })
+            // Update ONLY the URL bar (so the darshana is shareable/bookmarkable)
+            // without triggering a React Router route swap — that would remount
+            // Chat and wipe the just-streamed answer from memory, then race the
+            // save with a re-fetch. history.replaceState changes the path quietly.
+            window.history.replaceState(null, "", `/darshana/${p.session_id}`)
             setHistory(prev => [
               ...prev,
               { role: "user",      content: q },

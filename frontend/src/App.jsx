@@ -352,8 +352,11 @@ function AppInner() {
       <Header user={user} onNewChat={newChat} displayLang={displayLang} onLangChange={setDisplayLang} />
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
         <Routes>
-          <Route path="/"                    element={<Chat key={`new-${chatKey}`} user={user} displayLang={displayLang} />} />
-          <Route path="/darshana/:session_id" element={<Chat key={`darshana-${chatKey}`} user={user} displayLang={displayLang} />} />
+          {/* Same key for both routes so an in-tab / → /darshana transition keeps
+              the SAME Chat instance. The answer flow uses history.replaceState
+              (not router navigate), so this mainly guards direct loads / +New. */}
+          <Route path="/"                    element={<Chat key={`chat-${chatKey}`} user={user} displayLang={displayLang} />} />
+          <Route path="/darshana/:session_id" element={<Chat key={`chat-${chatKey}`} user={user} displayLang={displayLang} />} />
           <Route path="/about"              element={<About />} />
           <Route path="/history"            element={<History user={user} />} />
         </Routes>
