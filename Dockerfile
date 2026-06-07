@@ -23,10 +23,12 @@ COPY frontend/ ./
 # fetch ever fails, the app falls back to the inlined base64, so the build still
 # succeeds and the watermark still shows. (HF allows HTTPS during build.)
 RUN apt-get update && apt-get install -y --no-install-recommends curl imagemagick \
- && ( curl -fsSL "https://upload.wikimedia.org/wikipedia/commons/e/e3/Raja_Ravi_Varma_-_Sankaracharya.jpg" -o /tmp/sk.jpg \
-      && convert /tmp/sk.jpg -resize 1100x -quality 88 -unsharp 0x0.4 public/shankara-bg.jpg \
-      && echo "shankara-bg.jpg generated" \
-    || echo "image fetch failed — app will use base64 fallback" ) \
+ && curl -fL --retry 4 --retry-delay 3 --connect-timeout 20 \
+      -A "Mozilla/5.0 (SankaRAGamana build)" \
+      "https://upload.wikimedia.org/wikipedia/commons/e/e3/Raja_Ravi_Varma_-_Sankaracharya.jpg" \
+      -o /tmp/sk.jpg \
+ && convert /tmp/sk.jpg -resize 1300x -quality 92 -unsharp 0x0.5 public/shankara-bg.jpg \
+ && echo "shankara-bg.jpg generated: $(identify -format '%wx%h %b' public/shankara-bg.jpg)" \
  && rm -rf /var/lib/apt/lists/* /tmp/sk.jpg
 
 # Supabase keys are build-time for Vite (import.meta.env.VITE_*). HF passes
