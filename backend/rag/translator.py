@@ -7,7 +7,7 @@ on the frontend. Sanskrit quotes in responses are marked with
 data-notranslate so the frontend can skip them.
 """
 
-from backend.rag.groq_client import get_client, chat as groq_chat
+from backend.rag.groq_client import get_client, chat as groq_chat, MODEL_HEAVY, MODEL_LIGHT
 
 _TRANSLATE_PROMPT = """Translate the following query into English.
 Return only the translated text, nothing else. No explanation.
@@ -24,7 +24,7 @@ async def translate_query_to_english(query: str, language: str) -> str:
         return query
     try:
         response = groq_chat(
-            model="llama-3.3-70b-versatile",
+            model=MODEL_HEAVY,
             messages=[{"role": "user", "content": _TRANSLATE_PROMPT.format(query=query)}],
             temperature=0.1,
             max_tokens=256,

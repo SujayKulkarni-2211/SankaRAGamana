@@ -6,7 +6,7 @@ Responds in seeker's language with pramāṇa rule. Supports conversation histor
 from dataclasses import dataclass
 from typing import List, Optional
 
-from backend.rag.groq_client import get_client, chat as groq_chat
+from backend.rag.groq_client import get_client, chat as groq_chat, MODEL_HEAVY, MODEL_LIGHT
 from backend.rag.embedder import Embedder
 from backend.rag.retriever import retrieve
 
@@ -121,7 +121,7 @@ async def run_agent_b(query: str, seeker_profile: dict, history: list = None) ->
         messages.append({"role": "user", "content": f"The seeker asks: {query}"})
 
         resp = get_client().chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=MODEL_HEAVY,
             messages=messages,
             temperature=0.4,
             max_tokens=2048,
@@ -155,7 +155,7 @@ async def stream_agent_b(query: str, seeker_profile: dict, history: list = None)
         messages.append({"role": "user", "content": f"The seeker asks: {query}"})
 
         stream = groq_chat(
-            model="llama-3.3-70b-versatile",
+            model=MODEL_HEAVY,
             messages=messages,
             temperature=0.4,
             max_tokens=2048,

@@ -12,6 +12,7 @@ import json
 from typing import List, Optional
 
 from groq import Groq
+from backend.rag.groq_client import MODEL_HEAVY
 from supabase import create_client, Client
 
 POSITIVE_DISTILLATION_THRESHOLD = 20
@@ -91,7 +92,7 @@ async def distill_negative(
             c.get("chunk_id", "") for c in (chunks or [])[:5]
         )
         raw = _groq_client().chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=MODEL_HEAVY,
             messages=[{"role": "user", "content": NEGATIVE_DISTILL_PROMPT.format(
                 query=query,
                 response=response,
@@ -135,7 +136,7 @@ async def maybe_distill_positive():
             for r in rows
         )
         raw = _groq_client().chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=MODEL_HEAVY,
             messages=[{"role": "user", "content": POSITIVE_DISTILL_PROMPT.format(
                 count=len(rows),
                 responses=responses_text[:6000],

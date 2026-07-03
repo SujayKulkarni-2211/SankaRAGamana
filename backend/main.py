@@ -52,7 +52,31 @@ async def health():
     return {"status": "ok", "model_loaded": Embedder.is_loaded()}
 
 
-# Serve React build — must be last
+# Serve React build — must be last.
+#
+# SPA fallback: the React app uses client-side routing (/darshana/:id, /about,
+# …). Those paths are NOT files on disk, so a direct visit / reload / shared
+# link would otherwise hit the server and get a raw 404 JSON page (the
+# "pretty-printed error" some users reported). A StaticFiles subclass that
+# returns index.html for any missing path lets React Router take over instead.
+from starlette.responses import FileResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
 frontend_dist = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+
+
+class SPAStaticFiles(StaticFiles):
+    async def get_response(self, path, scope):
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            # Any unknown, non-API path → serve the SPA shell (200), so the
+            # client router renders the route. Real 404s inside /api are
+            # untouched (this mount only covers "/").
+            if exc.status_code == 404:
+                return FileResponse(os.path.join(frontend_dist, "index.html"))
+            raise
+
+
 if os.path.isdir(frontend_dist):
-    app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="static")
+    app.mount("/", SPAStaticFiles(directory=frontend_dist, html=True), name="static")

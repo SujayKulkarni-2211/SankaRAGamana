@@ -24,7 +24,7 @@ from typing import Optional
 
 from supabase import create_client, Client
 
-from backend.rag.groq_client import chat as groq_chat
+from backend.rag.groq_client import chat as groq_chat, MODEL_LIGHT
 
 # Re-consolidate when the seeker has had this many exchanges since the last pass,
 # OR when the profile is older than this. Whichever comes first.
@@ -209,7 +209,7 @@ def consolidate(user_id: str) -> Optional[dict]:
 
         prompt = CONSOLIDATE_PROMPT.format(history=_format_history(rows))
         response = groq_chat(
-            model="llama-3.1-8b-instant",  # background distillation → cheaper pool
+            model=MODEL_LIGHT,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.2,
             max_tokens=400,

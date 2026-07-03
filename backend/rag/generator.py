@@ -3,6 +3,7 @@ import os
 from typing import List, Optional
 
 from groq import Groq
+from backend.rag.groq_client import MODEL_HEAVY
 
 _client: Optional[Groq] = None
 
@@ -142,7 +143,7 @@ async def generate(question: str, retrieved_chunks: List[dict], seeker_profile: 
     )
 
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model=MODEL_HEAVY,
         messages=[
             {"role": "system", "content": system},
             {"role": "user", "content": USER_TEMPLATE.format(question=question)},

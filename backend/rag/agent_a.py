@@ -7,7 +7,7 @@ Supports both regular and streaming generation.
 from dataclasses import dataclass
 from typing import List, Optional
 
-from backend.rag.groq_client import get_client, chat as groq_chat
+from backend.rag.groq_client import get_client, chat as groq_chat, MODEL_HEAVY, MODEL_LIGHT
 from backend.rag.embedder import Embedder
 from backend.rag.retriever import retrieve
 
@@ -59,7 +59,7 @@ def _fmt(chunks: List[dict]) -> str:
 
 async def translate_to_sanskrit(query: str) -> str:
     r = groq_chat(
-        model="llama-3.3-70b-versatile",
+        model=MODEL_HEAVY,
         messages=[{"role": "user", "content": TRANSLATE_PROMPT.format(query=query)}],
         temperature=0.1,
         max_tokens=200,
@@ -73,7 +73,7 @@ async def run_agent_a(query: str, seeker_profile: dict) -> AgentResult:
         sa_embedding = _embedder.embed_query(sanskrit_query)
         chunks = await retrieve(sa_embedding, seeker_profile)
         resp = groq_chat(
-            model="llama-3.3-70b-versatile",
+            model=MODEL_HEAVY,
             messages=[
                 {"role": "system", "content": SYSTEM.format(chunks_formatted=_fmt(chunks))},
                 {"role": "user", "content": f"The seeker asks: {sanskrit_query}"},
@@ -97,7 +97,7 @@ async def stream_agent_a(query: str, seeker_profile: dict):
         sa_embedding = _embedder.embed_query(sanskrit_query)
         chunks = await retrieve(sa_embedding, seeker_profile)
         stream = groq_chat(
-            model="llama-3.3-70b-versatile",
+            model=MODEL_HEAVY,
             messages=[
                 {"role": "system", "content": SYSTEM.format(chunks_formatted=_fmt(chunks))},
                 {"role": "user", "content": f"The seeker asks: {sanskrit_query}"},

@@ -10,7 +10,7 @@ import json
 import os
 from typing import Optional
 
-from backend.rag.groq_client import get_client, chat as groq_chat
+from backend.rag.groq_client import get_client, chat as groq_chat, MODEL_HEAVY, MODEL_LIGHT
 
 
 PROFILER_PROMPT = """You are a profiler. Analyze the seeker's query and return a JSON object.
@@ -138,7 +138,7 @@ async def profile_seeker(query: str, history: list = None) -> dict:
         if history_ctx:
             prompt = history_ctx + "\n\nCurrent query: " + query + "\n\n" + prompt
         response = groq_chat(
-            model="llama-3.1-8b-instant",  # light classification → cheaper pool
+            model=MODEL_LIGHT,
             messages=[
                 {"role": "user", "content": prompt},
             ],

@@ -13,6 +13,18 @@ import threading
 from datetime import datetime, timezone
 from groq import Groq
 
+# ── Models (env-configurable) ────────────────────────────────────────────────
+# Groq deprecates models periodically (e.g. llama-3.3-70b-versatile → Aug 2026).
+# Keep the model IDs in ONE place, overridable via env, so a decommission is a
+# config change (set the env var + restart), never a code edit + redeploy.
+#
+#   MODEL_HEAVY — reasoning-grade: agents, reflection, synthesis, translation.
+#   MODEL_LIGHT — fast/cheap: seeker profiler, memory distillation.
+#
+# Defaults follow Groq's current recommended replacements.
+MODEL_HEAVY = os.getenv("GROQ_MODEL_HEAVY", "openai/gpt-oss-120b")
+MODEL_LIGHT = os.getenv("GROQ_MODEL_LIGHT", "llama-3.1-8b-instant")
+
 _lock = threading.Lock()
 _index = 0
 _clients: list[Groq] = []
