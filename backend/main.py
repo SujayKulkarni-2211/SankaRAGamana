@@ -52,6 +52,26 @@ async def health():
     return {"status": "ok", "model_loaded": Embedder.is_loaded()}
 
 
+@app.get("/keepalive")
+async def keepalive():
+    """Pinged by an EXTERNAL scheduler (cron-job.org) every ~2-3 days. One hit:
+      • keeps the Hugging Face Space awake (it's real HTTP traffic), AND
+      • touches Supabase with a trivial read, resetting its free-tier
+        inactivity timer so the database never auto-pauses.
+    The whole free stack stays alive without anyone paying anything."""
+    db_ok = False
+    try:
+        import os
+        from supabase import create_client
+        db = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+        # cheapest possible read — one row from a tiny table
+        db.table("book_centroids").select("text_name").limit(1).execute()
+        db_ok = True
+    except Exception as e:
+        print(f"[keepalive] db touch failed: {e}")
+    return {"status": "ok", "hf_awake": True, "db_touched": db_ok}
+
+
 # Serve React build — must be last.
 #
 # SPA fallback: the React app uses client-side routing (/darshana/:id, /about,
