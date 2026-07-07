@@ -37,8 +37,13 @@ def _fetch_book_similarities(query_embedding: List[float]) -> Dict[str, float]:
 
 # How many chunks the agents finally see. A paṇḍita draws on several sources,
 # explains each, and shows how to apply them — so we retrieve generously.
-FINAL_K = 10
-CANDIDATE_POOL = 40  # wide net before diversity-aware selection
+# Raised from 10 → 16 so a book that is genuinely ABOUT the topic can contribute
+# many of its verses (depth), while off-topic books still appear (breadth).
+FINAL_K = 10   # fits the free-tier per-minute token budget (8k TPM on the
+               # current heavy model). Depth-aware selection (below) still lets
+               # an on-topic book take several of these 10 slots.
+CANDIDATE_POOL = 50  # wide net before selection, so on-topic books have enough
+                     # verses available for _depth_select to go deep.
 
 # Soft diversity, modulated by whether a book is GENUINELY on-topic.
 # Each additional chunk from an already-picked text is discounted — but the
@@ -106,6 +111,48 @@ def _diversity_select(candidates: List[dict], k: int, book_sim: Dict[str, float]
     return chosen
 
 
+# ── Depth-aware selection: a book WRITTEN ABOUT the topic may contribute many
+# verses; an off-topic book gets a token presence. The per-book cap scales with
+# the book's centroid similarity to the query (how genuinely on-topic it is).
+# This fixes the old 1-verse-per-book flattening that crippled deep answers when
+# an entire text bears on the question (e.g. a whole prakaraṇa on māyā, or the
+# Gītā Bhāṣya on karma-yoga). Breadth is still preserved for off-topic books.
+def _book_cap(book_sim: float) -> int:
+    if book_sim >= 0.84: return 6   # genuinely about it → go deep
+    if book_sim >= 0.82: return 4
+    if book_sim >= 0.80: return 3
+    if book_sim >= 0.78: return 2
+    return 1                        # off-topic → one verse, for breadth
+
+
+def _depth_select(candidates: List[dict], k: int, book_sim: Dict[str, float],
+                  primary_texts: Optional[set] = None) -> List[dict]:
+    """Take highest-similarity chunks first, but never exceed a book's
+    centroid-scaled cap. Named texts (deity/topic overrides) get +1 headroom."""
+    primary = primary_texts or set()
+    chosen: List[dict] = []
+    per: dict = {}
+    for c in sorted(candidates, key=lambda x: -x.get("similarity", 0)):
+        if len(chosen) >= k:
+            break
+        tn = c.get("text_name")
+        cap = _book_cap(book_sim.get(tn, 0.0))
+        if tn in primary:
+            cap += 1
+        if per.get(tn, 0) < cap:
+            chosen.append(c)
+            per[tn] = per.get(tn, 0) + 1
+    # If caps left us short of k (rare), backfill by pure similarity.
+    if len(chosen) < k:
+        taken = {id(c) for c in chosen}
+        for c in sorted(candidates, key=lambda x: -x.get("similarity", 0)):
+            if len(chosen) >= k:
+                break
+            if id(c) not in taken:
+                chosen.append(c)
+    return chosen
+
+
 async def retrieve(
     query_embedding: List[float],
     seeker_profile: dict,
@@ -159,7 +206,11 @@ async def retrieve(
     # refresh_book_centroids() keeps it in sync — no app-side recompute.
     book_sim = _fetch_book_similarities(query_embedding)
 
-    results = _diversity_select(candidates, k, book_sim, primary_texts)
+    # Depth-aware: on-topic books may go deep (many verses), off-topic books get
+    # one — so a text written about the question is summarised richly, not
+    # flattened to a single line. (_diversity_select is kept as the older
+    # one-per-book strategy for reference/fallback.)
+    results = _depth_select(candidates, k, book_sim, primary_texts)
 
     return results
 
